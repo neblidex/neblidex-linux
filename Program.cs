@@ -2383,7 +2383,6 @@ namespace NebliDex_Linux
                 sendwallet = MarketList[myord.market].trade_wallet;
                 receivewallet = MarketList[myord.market].base_wallet;
                 sendamount = amount;
-                if (sendamount < blockchain_fee[0]) { return false; }
             }
 
 			bool ntp1_wallet = IsWalletNTP1(sendwallet);
