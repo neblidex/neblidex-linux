@@ -94,7 +94,7 @@ namespace NebliDex_Linux
                             TcpClient client = await critical_node_server.AcceptTcpClientAsync(); //This will wait for a client
                                                                                                   //The IP address of the person on the other side and port they used to connect to
                                                                                                   //A new client connected, create a dex connection
-                            string ip_add = ((IPEndPoint)client.Client.RemoteEndPoint).Address.MapToIPv4().ToString();
+                            string ip_add = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
                             string port = ((IPEndPoint)client.Client.RemoteEndPoint).Port.ToString();
 
                             NebliDexNetLog("Server: Connection Accepted: " + ip_add);
