@@ -513,7 +513,6 @@
     </None>
     <None Include="NBitcoin\BitcoinStream.Partial.tt" />
     <None Include="NBitcoin\UInt256.tt" />
-    <None Include="Confuser.crproj" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
