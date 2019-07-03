@@ -19,6 +19,19 @@ namespace NBitcoin.DataEncoders
 
 			return InternalEncoder.EncodeData(toEncode, 0, toEncode.Length);
 		}
+		
+		public static string EncodeGroestlData(byte[] data)
+		{
+			int offset = 0;
+			int count = data.Length;
+			var toEncode = new byte[count + 4];
+			Buffer.BlockCopy(data, offset, toEncode, 0, count);
+			
+			byte[] hash = NBitcoin.Crypto.Hashes.DoubleGroestl(data); //Double hash the byte data
+			Buffer.BlockCopy(hash, 0, toEncode, count, 4); //Copies only 4 bytes
+
+			return InternalEncoder.EncodeData(toEncode, 0, toEncode.Length);
+		}
 
 		public override byte[] DecodeData(string encoded)
 		{
@@ -31,10 +44,18 @@ namespace NBitcoin.DataEncoders
 			var calculatedHash = Hashes.Hash256(vchRet, 0, vchRet.Length - 4).ToBytes().SafeSubarray(0, 4);
 			var expectedHash = vchRet.SafeSubarray(vchRet.Length - 4, 4);
 
+			//This is the Checksum, will fail for Groestl hashes
 			if(!Utils.ArrayEqual(calculatedHash, expectedHash))
 			{
-				Array.Clear(vchRet, 0, vchRet.Length);
-				throw new FormatException("Invalid hash of the base 58 string");
+				//Now check if Groestl hash passes
+				byte[] groestlBuffer = new byte[vchRet.Length - 4];
+				Array.Copy(vchRet,groestlBuffer,groestlBuffer.Length); //Copy everything except the checksum
+				byte[] calculatedGroestlHash = NBitcoin.Crypto.Hashes.DoubleGroestl(groestlBuffer).SafeSubarray(0,4);
+				if(!Utils.ArrayEqual(calculatedGroestlHash, expectedHash))
+				{
+					Array.Clear(vchRet, 0, vchRet.Length);
+					throw new FormatException("Invalid hash of the base 58 string");
+				}
 			}
 			vchRet = vchRet.SafeSubarray(0, vchRet.Length - 4);
 			return vchRet;

@@ -73,7 +73,12 @@ namespace NBitcoin
 		{
 			this.vchData = vchData;
 			this.vchVersion = _Network.GetVersionBytes(Type);
-			wifData = Encoders.Base58Check.EncodeData(vchVersion.Concat(vchData).ToArray());
+			if(_Network.useGroestlHash == false){
+				wifData = Encoders.Base58Check.EncodeData(vchVersion.Concat(vchData).ToArray());
+			}else{
+				//Using Groestl hashing
+				wifData = Base58CheckEncoder.EncodeGroestlData(vchVersion.Concat(vchData).ToArray());
+			}
 
 			if(!IsValid)
 				throw new FormatException("Invalid " + this.GetType().Name);

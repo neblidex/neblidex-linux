@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NBitcoin.Altcoins.HashX11.Crypto.SHA3;
 
 #if !WINDOWS_UWP && !USEBC
 using System.Security.Cryptography;
@@ -91,6 +92,17 @@ namespace NBitcoin.Crypto
 #endif
 		}
 
+		#endregion
+		
+		#region Groestl512
+		public static byte[] DoubleGroestl(byte[] dig)
+        {
+			Groestl512 digest = new Groestl512();
+			NBitcoin.Altcoins.HashX11.HashResult res = digest.ComputeBytes(dig);
+			//And do it again
+			res = digest.ComputeBytes(res.GetBytes()); //Do the double hash
+			return res.GetBytes();			
+		}
 		#endregion
 
 		internal class SipHasher

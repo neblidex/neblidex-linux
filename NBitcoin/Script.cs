@@ -84,6 +84,9 @@ namespace NBitcoin
 
 		// Support segregated witness
 		Witness = (1U << 11),
+		
+		// Flag to support BCH ForkID
+		ForkId = (1U << 29),
 
 		// Making v2-v16 witness program non-standard
 		DiscourageUpgradableWitnessProgram = (1U << 12),
@@ -135,6 +138,10 @@ namespace NBitcoin
 		/// Only the output with the same index as this input is signed
 		/// </summary>
 		Single = 3,
+		/// <summary>
+		/// If set, a custom ForkID is added to the sighash
+		/// </summary>
+		ForkID = 0x40,
 		/// <summary>
 		/// If set, no inputs, except this, are part of the signature
 		/// </summary>
@@ -529,6 +536,10 @@ namespace NBitcoin
 		//https://en.bitcoin.it/wiki/OP_CHECKSIG
 		public static uint256 SignatureHash(Script scriptCode, Transaction txTo, int nIn, SigHash nHashType, Money amount = null, HashVersion sigversion = HashVersion.Original)
 		{
+			if(txTo.useForkID == true){
+				//Because Bitcoin Cash hashes similar to Segwit hashes (uses amount of input), treat it as a segwit transaction for hashing
+				sigversion = HashVersion.Witness;
+			}			
 			if(sigversion == HashVersion.Witness)
 			{
 				if(amount == null)
@@ -591,13 +602,16 @@ namespace NBitcoin
 				// Locktime
 				sss.ReadWriteStruct(txTo.LockTime);
 				// Sighash type
-				sss.ReadWrite((uint)nHashType);
+				uint write_nHashType = (uint)nHashType;
+				if(txTo.useForkID == true){
+					//Bitshift the hashtype with the zero-byte forkID if present for BCH
+					write_nHashType |= 0x00 << 8; //ForkID for BCH is 0, bitshift most significant digits
+					
+				}
+				sss.ReadWrite(write_nHashType);
 
 				return GetHash(sss);
 			}
-
-
-
 
 			if(nIn >= txTo.Inputs.Count)
 			{
@@ -665,18 +679,31 @@ namespace NBitcoin
 				txCopy.Inputs[0].ScriptSig = scriptCopy;
 			}
 
-
 			//Serialize TxCopy, append 4 byte hashtypecode
 			var stream = CreateHashWriter(sigversion);
 			txCopy.ReadWrite(stream);
 			stream.ReadWrite((uint)nHashType);
-			return GetHash(stream);
+			if(txTo.useHASH256 == true){
+				return GetHash(stream);
+			}else{
+				return GetSHA256Hash(stream);
+			}
 		}
 
 		private static uint256 GetHash(BitcoinStream stream)
 		{
 			var preimage = ((MemoryStream)stream.Inner).ToArrayEfficient();
+			
 			return Hashes.Hash256(preimage);
+		}
+		
+		private static uint256 GetSHA256Hash(BitcoinStream stream)
+		{
+			//This will only hash the byte stream once instead of twice
+			var preimage = ((MemoryStream)stream.Inner).ToArrayEfficient();
+			byte[] byte_image = Hashes.SHA256(preimage);
+			
+			return new uint256(byte_image);
 		}
 
 		private static BitcoinStream CreateHashWriter(HashVersion version)
