@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Data;
 using Mono.Data.Sqlite;
@@ -22,15 +22,23 @@ namespace NebliDex_Linux
         public static int default_ui_look = 0; //UI look when ExchangeWindow opens
 
 		//Mainnet version
-		public static int protocol_version = 5; //My protocol version
-		public static int protocol_min_version = 5; //Minimum accepting protocol version
-		public static string version_text = "v5.0.0";
+		public static int protocol_version = 6; //My protocol version
+		public static int protocol_min_version = 6; //Minimum accepting protocol version
+		public static string version_text = "v6.0.0";
 		public static bool run_headless = false; //If true, this software is ran in critical node mode without GUI on startup
 		public static bool http_open_network = true; //This becomes false if user closes window
 		public static int sqldatabase_version = 3;
+		public static int accountdat_version = 1; //The version of the account wallet
 
-		//Lowest testnet version: 2
-		//Lowest mainnet version: 5
+		//Lowest testnet version: 6
+		//Lowest mainnet version: 6
+
+		//Version 6
+        //updated Electrum servers to SSL
+        //Added GRS/NEBL, BCH/BTC, LTC/BTC, MONA/BTC, MONA/LTC, ETH/BTC, ETH/LTC
+        //Dependency files that have been changed: NBitcoin/Transaction.cs, NBitcoin/Script.cs
+        //NBitcoin/DataEncoders/Base58Encoder.cs, NBitcoin/Network.cs, NBitcoin/Crypto/Hashes.cs
+        //NBitcoin/Base58Data.cs
 
 		public static string App_Path = AppDomain.CurrentDomain.BaseDirectory;
 
@@ -47,9 +55,18 @@ namespace NebliDex_Linux
 		public static int wlan_mode = 0; //0 = Internet, 1 = WLAN, 2 = Localhost (This is for CN IP addresses returned)
         
 		public static int exchange_market = 2; //NDEX/NEBL
-		public static int total_markets = 15;
-		public static int total_ntp1_tokens = 11;
-		public static int total_scan_markets = total_markets; //This number will vary if we are updating the markets
+        public static int total_markets = 22;
+        public static int total_scan_markets = total_markets; // This number will vary if we are updating the markets
+        public static int total_cointypes = 7; 
+		//The total amount of cointypes supported by NebliDex
+       //Possible cointypes are:
+       //0 - Neblio based (including tokens)
+       //1 - Bitcoin based
+       //2 - Litecoin based
+       //3 - Groestlcoin based
+       //4 - Bitcoin Cash (ABC) based
+       //5 - Monacoin based
+       //6 - Ethereum based
 
 		public static Random app_random_gen = new Random(); //App random number generator
 		public static string my_rsa_privkey, my_rsa_pubkey; //These are used to exchange a one time use password nonce between validator and TN
@@ -204,6 +221,55 @@ namespace NebliDex_Linux
                     trade_symbol = "IMBA";
                     base_wallet = 0; //NEBL wallet
                     trade_wallet = 13; //IMBA wallet                 
+				}
+				else if (index == 15)
+                {
+                    base_symbol = "BTC";
+                    trade_symbol = "LTC";
+                    base_wallet = 1; //BTC
+                    trade_wallet = 2; //LTC
+                }
+                else if (index == 16)
+                {
+                    base_symbol = "BTC";
+                    trade_symbol = "BCH";
+                    base_wallet = 1; //BTC
+                    trade_wallet = 15; //BCH
+                }
+                else if (index == 17)
+                {
+                    base_symbol = "BTC";
+                    trade_symbol = "ETH";
+                    base_wallet = 1; //BTC
+                    trade_wallet = 17; //ETH
+                }
+                else if (index == 18)
+                {
+                    base_symbol = "BTC";
+                    trade_symbol = "MONA";
+                    base_wallet = 1;
+                    trade_wallet = 16; //MONA
+                }
+                else if (index == 19)
+                {
+                    base_symbol = "NEBL";
+                    trade_symbol = "GRS";
+                    base_wallet = 0;
+                    trade_wallet = 14; //GRS
+                }
+                else if (index == 20)
+                {
+                    base_symbol = "LTC";
+                    trade_symbol = "ETH";
+                    base_wallet = 2;
+                    trade_wallet = 17; //ETH
+                }
+                else if (index == 21)
+                {
+                    base_symbol = "LTC";
+                    trade_symbol = "MONA";
+                    base_wallet = 2;
+                    trade_wallet = 16; //MONA
                 }
 			}
 
@@ -224,26 +290,101 @@ namespace NebliDex_Linux
 		[Gtk.TreeNode(ListOnly = true)]
 		public class Wallet : Gtk.TreeNode
 		{
-			public int type; //0 - avail, 1 - pending, 2 - waiting
+			public int type; 
 			public string private_key;
 			public string address;
 			public decimal balance;
-			public bool ntp1 = false;
-			public int status = 0;
+			public int status = 0; //0 - avail, 1 - pending, 2 - waiting
+			public int blockchaintype = 0;
 
-			public bool Active
-            {
-                get
+			public static int total_coin_num = 18; //Total number of possible different wallet coins
+
+            public static bool CoinActive(int ctype)
+            { //Coins that are not active anymore
+                if (ctype == 5 || ctype == 6 || ctype == 9)
+                { //QRT, CHE, PTN are not active anymore
+                    return false;
+                }
+                else
                 {
-					if (type == 5 || type == 6 || type == 9)
-                    { //QRT, CHE, PTN are not active anymore
-                        return false;
-                    }
-                    else
+                    return true;
+                }
+            }
+
+            public static bool CoinNTP1(int ctype)
+            {
+                //Returns true if the type is a NTP1 type
+                if (ctype >= 3 && ctype <= 13)
+                {
+                    return true;
+                }
+                return false;
+            }
+
+            public static int WalletType(int btype)
+            {
+                //Returns type based on the blockchain type
+                if (btype < 3)
+                {
+                    return btype;
+                }
+                else
+                {
+                    if (btype == 3)
                     {
-                        return true;
+                        //GRS Wallet
+                        return 14;
+                    }
+                    else if (btype == 4)
+                    {
+                        //BCH
+                        return 15;
+                    }
+                    else if (btype == 5)
+                    {
+                        //MONA
+                        return 16;
+                    }
+                    else if (btype == 6)
+                    {
+                        //ETH
+                        return 17;
                     }
                 }
+                return 0; //Otherwise, its neblio based
+            }
+
+            public static int BlockchainType(int type)
+            {
+                if (type == 0 || (type > 2 && type < 14))
+                {
+                    return 0; //Neblio based (including tokens
+                }
+                else if (type == 1)
+                {
+                    return 1;
+                }
+                else if (type == 2)
+                {
+                    return 2;
+                }
+                else if (type == 14)
+                {
+                    return 3;
+                }
+                else if (type == 15)
+                {
+                    return 4;
+                }
+                else if (type == 16)
+                {
+                    return 5;
+                }
+                else if (type == 17)
+                {
+                    return 6;
+                }
+                return 0;
             }
 
 			[Gtk.TreeNodeValue(Column = 0)]
@@ -251,17 +392,17 @@ namespace NebliDex_Linux
 			{
 				get
 				{
-					if (type == 1)
+					if (type == 0)
+                    {
+                        return "NEBL";
+                    }
+					else if (type == 1)
 					{
 						return "BTC";
 					}
 					else if (type == 2)
 					{
 						return "LTC";
-					}
-					else if (type == 0)
-					{
-						return "NEBL";
 					}
 					else if (type == 3)
 					{ //Important wallet
@@ -305,6 +446,22 @@ namespace NebliDex_Linux
 					else if (type == 13)
                     {
                         return "IMBA"; //IMBA 3rd party token
+					}
+					else if (type == 14)
+                    {
+                        return "GRS"; //GRS coin
+                    }
+                    else if (type == 15)
+                    {
+                        return "BCH"; //Bitcoin Cash
+                    }
+                    else if (type == 16)
+                    {
+                        return "MONA"; //Monacoin
+                    }
+                    else if (type == 17)
+                    {
+                        return "ETH"; //Ethereum
                     }
 					return "";
 				}
@@ -314,9 +471,9 @@ namespace NebliDex_Linux
 			{
 				get
 				{
-					if (type < 3)
-					{
-						return "";
+					if (type == 0 || blockchaintype != 0)
+                    { //Not Neblio token
+                        return "";
 					}
 					else if (type == 3)
 					{ //Important wallet
@@ -944,7 +1101,7 @@ namespace NebliDex_Linux
                 RecentTradeList[it] = new List<RecentTrade>();
             }
 
-            //And market list
+			//Add market list, the order is very important
             for (int im = 0; im < total_markets; im++)
             {
                 Market mark = new Market(im);
@@ -955,16 +1112,24 @@ namespace NebliDex_Linux
             ChartLastPrice[0] = new List<LastPriceObject>(); //24 hour
             ChartLastPrice[1] = new List<LastPriceObject>(); //7 Day
 
-            //Set the default fees
+			//Set the default fees
             //Neblio rounds up to closest 0.0001
             blockchain_fee[0] = 0.00011m;  //This is fee per 1000 bytes (2000 hex characters)
             blockchain_fee[1] = 0.0012m; //Default fees per kb
             blockchain_fee[2] = 0.0020m;
+            blockchain_fee[3] = 0.0020m;
+            blockchain_fee[4] = 0.00002m; //BCH (2000 sat/kb default)
+            blockchain_fee[5] = 0.0020m; //MONA
+            blockchain_fee[6] = 5; //ETH default gas price in gwei
 
             //Set the dust minimums as well
             dust_minimum[0] = 0.0001m; //Cannot send an output less than this
             dust_minimum[1] = 0.0000547m;
             dust_minimum[2] = 0.0000547m;
+            dust_minimum[3] = 0.0000547m;
+            dust_minimum[4] = 0.0000001m; //BCH (Very low dust minimum)
+            dust_minimum[5] = 0.001m; //MONA
+            dust_minimum[6] = 0.000000001m; //ETH
 
             if (testnet_mode == true)
             {
@@ -1483,7 +1648,7 @@ namespace NebliDex_Linux
                 statement.Dispose();
             }
 
-            if (database_version == sqldatabase_version) { return; } //No update available
+            if (database_version >= sqldatabase_version) { return; } //No update available
             NebliDexNetLog("Updating database");
 
             if (database_version == 0)
@@ -1566,13 +1731,18 @@ namespace NebliDex_Linux
             ord.cn_relayer_ip = my_ip; //We are the owner of the order
             ord.market = Convert.ToInt32(jord["order.market"].ToString());
             ord.type = Convert.ToInt32(jord["order.type"].ToString());
-            ord.original_amount = Convert.ToDecimal(jord["order.originalamount"].ToString(), CultureInfo.InvariantCulture);
-            ord.minimum_amount = Convert.ToDecimal(jord["order.min_amount"].ToString(), CultureInfo.InvariantCulture);
-            ord.price = Convert.ToDecimal(jord["order.price"].ToString(), CultureInfo.InvariantCulture);
+			ord.original_amount = Math.Round(Convert.ToDecimal(jord["order.originalamount"].ToString(), CultureInfo.InvariantCulture), 8);
+            ord.minimum_amount = Math.Round(Convert.ToDecimal(jord["order.min_amount"].ToString(), CultureInfo.InvariantCulture), 8);
+            ord.price = Math.Round(Convert.ToDecimal(jord["order.price"].ToString(), CultureInfo.InvariantCulture), 8);
             ord.amount = ord.original_amount;
             ord.order_stage = 0;
             ord.cooldownend = 0;
 
+			if (ord.order_nonce.Length != 32)
+            {
+                //Should be 32 characters long
+                return "Order Denied: Invalid Order Data";
+            }
             if (ord.market < 0 || ord.market >= total_markets)
             {
                 return "Order Denied: Invalid Order Data";
@@ -1602,19 +1772,26 @@ namespace NebliDex_Linux
                 return "Order Denied: Price is greater than 10 000 000";
             }
 
-            decimal block_fee1 = 0;
+			decimal block_fee1 = 0;
             decimal block_fee2 = 0;
-            if (MarketList[ord.market].trade_wallet > 2 || MarketList[ord.market].trade_wallet == 0)
+
+            int trade_wallet_blockchaintype = GetWalletBlockchainType(MarketList[ord.market].trade_wallet);
+            int base_wallet_blockchaintype = GetWalletBlockchainType(MarketList[ord.market].base_wallet);
+            block_fee1 = blockchain_fee[trade_wallet_blockchaintype]; //Trade wallet blockchain fee
+            block_fee2 = blockchain_fee[base_wallet_blockchaintype]; //Base wallet blockchain fee   
+
+            //Now calculate the totals for ethereum blockchain
+            if (trade_wallet_blockchaintype == 6)
             {
-                block_fee1 = blockchain_fee[0]; //Neblio fee
+                block_fee1 = GetEtherContractTradeFee();
             }
-            if (MarketList[ord.market].base_wallet >= 0 && MarketList[ord.market].base_wallet < 3)
+            if (base_wallet_blockchaintype == 6)
             {
-                block_fee2 = blockchain_fee[MarketList[ord.market].base_wallet]; //Base fee
+                block_fee2 = GetEtherContractTradeFee();
             }
 
             decimal total = ord.original_amount * ord.price;
-            if (total < block_fee1 || total < block_fee2 || ord.original_amount < block_fee1 || ord.original_amount < block_fee2)
+            if (total < block_fee2 || ord.original_amount < block_fee1)
             {
                 //The trade amount is too small
                 return "Order Denied: Total order too small";
@@ -1687,10 +1864,10 @@ namespace NebliDex_Linux
             ord.order_nonce = jord["order.nonce"].ToString();
             ord.market = Convert.ToInt32(jord["order.market"].ToString());
             ord.type = Convert.ToInt32(jord["order.type"].ToString());
-            ord.original_amount = Convert.ToDecimal(jord["order.originalamount"].ToString(), CultureInfo.InvariantCulture);
-            ord.price = Convert.ToDecimal(jord["order.price"].ToString(), CultureInfo.InvariantCulture);
+			ord.original_amount = Math.Round(Convert.ToDecimal(jord["order.originalamount"].ToString(), CultureInfo.InvariantCulture), 8);
+            ord.price = Math.Round(Convert.ToDecimal(jord["order.price"].ToString(), CultureInfo.InvariantCulture), 8);
             ord.amount = ord.original_amount;
-            ord.minimum_amount = Convert.ToDecimal(jord["order.min_amount"].ToString(), CultureInfo.InvariantCulture);
+            ord.minimum_amount = Math.Round(Convert.ToDecimal(jord["order.min_amount"].ToString(), CultureInfo.InvariantCulture), 8);
 			ord.order_stage = 0;
             ord.cooldownend = 0;
 
@@ -1708,6 +1885,11 @@ namespace NebliDex_Linux
                 }
             }
 
+			if (ord.order_nonce.Length != 32)
+            {
+                //Should be 32 characters long
+                return false;
+            }
             if (ord.market < 0 || ord.market >= total_markets)
             {
                 return false;
@@ -1822,6 +2004,15 @@ namespace NebliDex_Linux
             req.taker_cn_ip = getPublicFacingIP(); //We are the requester's owner CN
 
             //Now verify the request
+			if (req.order_nonce_ref.Length != 32)
+            {
+                //Should be 32 characters long
+                return "Order Request Denied: Invalid Order Data";
+            }
+            if (req.from_add_1.Length > 100 || req.to_add_2.Length > 100)
+            {
+                return "Order Request Denied: Invalid Order Data";
+            }
             if (req.market < 0 || req.market >= total_markets)
             {
                 return "Order Request Denied: Invalid Order Data";
@@ -1836,7 +2027,8 @@ namespace NebliDex_Linux
             }
 
             //Because tokens are indivisible at the moment, amounts can only be in whole numbers
-            if (MarketList[req.market].trade_wallet > 2)
+			bool ntp1_wallet = IsWalletNTP1(MarketList[req.market].trade_wallet);
+            if (ntp1_wallet == true)
             {
                 if (Math.Abs(Math.Round(amount) - amount) > 0)
                 {
@@ -1953,17 +2145,24 @@ namespace NebliDex_Linux
                         }
 
                         //Make sure that the order is large enough to move
-                        decimal block_fee1 = 0;
+						decimal block_fee1 = 0;
                         decimal block_fee2 = 0;
-                        if (MarketList[req.market].trade_wallet > 2 || MarketList[req.market].trade_wallet == 0)
+                        int trade_wallet_blockchaintype = GetWalletBlockchainType(MarketList[req.market].trade_wallet);
+                        int base_wallet_blockchaintype = GetWalletBlockchainType(MarketList[req.market].base_wallet);
+                        block_fee1 = blockchain_fee[trade_wallet_blockchaintype]; //Trade blockchain fee
+                        block_fee2 = blockchain_fee[base_wallet_blockchaintype]; //Base blockchain fee
+
+                        //Now calculate the totals for ethereum blockchain
+                        if (trade_wallet_blockchaintype == 6)
                         {
-                            block_fee1 = blockchain_fee[0]; //Neblio fee
+                            block_fee1 = GetEtherContractTradeFee();
                         }
-                        if (MarketList[req.market].base_wallet >= 0 && MarketList[req.market].base_wallet < 3)
+                        if (base_wallet_blockchaintype == 6)
                         {
-                            block_fee2 = blockchain_fee[MarketList[req.market].base_wallet]; //Base fee
+                            block_fee2 = GetEtherContractTradeFee();
                         }
-                        if (amount < block_fee1 || amount < block_fee2 || (amount * price) < block_fee1 || (amount * price) < block_fee2)
+
+                        if (amount < block_fee1 || (amount * price) < block_fee2)
                         {
                             //The trade amount is too small
                             return "Order Request Denied: This order request is too small";
@@ -1978,6 +2177,20 @@ namespace NebliDex_Linux
                         {
                             //Not enough taker balance to match request
                             return "Order Request Denied: You do not have enough balance to match this order";
+                        }
+						//And verify if taker is interacting with ethereum chain that he/she has enough ether
+                        if (trade_wallet_blockchaintype == 6 || base_wallet_blockchaintype == 6)
+                        {
+                            if (GetWalletBlockchainType(taker_sendwallet) != 6)
+                            {
+                                //The Taker is not sending Ethereum but still needs some to interact with contract
+                                decimal taker_eth = GetBlockchainAddressBalance(GetWalletType(6), req.to_add_2, false);
+                                if (taker_eth < GetEtherContractRedeemFee())
+                                {
+                                    //Not enough Ethereum in taker account to interact with contract
+                                    return "Order Request Denied: You do not have enough balance to match this order in the Ethereum contract";
+                                }
+                            }
                         }
 
                         //Maker and taker will of course double check this amount
@@ -2164,10 +2377,6 @@ namespace NebliDex_Linux
                 sendwallet = MarketList[myord.market].base_wallet;
                 receivewallet = MarketList[myord.market].trade_wallet;
                 sendamount = Math.Round(amount * myord.price, 8);
-                if (sendwallet < 3)
-                {
-                    if (sendamount < blockchain_fee[sendwallet]) { return false; } //Request is too small
-                }
             }
             else
             {
@@ -2175,6 +2384,31 @@ namespace NebliDex_Linux
                 receivewallet = MarketList[myord.market].base_wallet;
                 sendamount = amount;
                 if (sendamount < blockchain_fee[0]) { return false; }
+            }
+
+			bool ntp1_wallet = IsWalletNTP1(sendwallet);
+            if (ntp1_wallet == false)
+            {
+                //I am going to send a non-token, get the blockchain fee
+                int wallet_blockchaintype = GetWalletBlockchainType(sendwallet);
+                if (wallet_blockchaintype != 6)
+                {
+                    if (sendamount < blockchain_fee[wallet_blockchaintype]) { return false; } //Request is too small
+                }
+                else
+                {
+                    if (sendamount < GetEtherContractTradeFee()) { return false; }
+                }
+            }
+            else
+            {
+                //Sending a token
+                if (sendamount < 1) { return false; } //Cannot send 0 token
+                                                      //Also check to make sure token amount is whole number
+                if (Math.Abs(Math.Round(sendamount) - sendamount) > 0)
+                {
+                    return false;
+                }
             }
 
             if (sendwallet == 3)
@@ -2272,6 +2506,8 @@ namespace NebliDex_Linux
 
         public static void CheckWallet(Window win)
         {
+			//Wallet version is now 1
+
             //This function checks wallet format and if encryption present
             if (File.Exists(App_Path + "/data/account.dat") == false)
             {
@@ -2342,12 +2578,29 @@ namespace NebliDex_Linux
                         }
                     }
                 }
+				if (version < accountdat_version)
+                {
+                    NebliDexNetLog("Wallet needs to be upgraded");
+                }
             }
         }
 
         public static bool VerifyWalletPassword(string privkey, string address, int type)
         {
             //This will return true if the wallet was decrypted successfully
+			if (GetWalletBlockchainType(type) == 6)
+            {
+                //Eth
+                string my_eth_add = GenerateEthAddress(privkey);
+                if (my_eth_add.Equals(address) == true)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
             try
             {
                 lock (transactionLock)
@@ -2395,7 +2648,7 @@ namespace NebliDex_Linux
                     new System.IO.StreamWriter(@App_Path + "/data/account.dat", false))
                 {
                     int i;
-                    file.WriteLine(0); //Version of account file
+					file.WriteLine(accountdat_version); //Version of account file
                     if (my_wallet_pass.Length > 0)
                     {
                         file.WriteLine(1); //This file will be encrypted
@@ -2404,10 +2657,10 @@ namespace NebliDex_Linux
                     {
                         file.WriteLine(0); //No encryption present
                     }
-                    for (i = 0; i < 3; i++)
+					for (i = 0; i < total_cointypes; i++)
                     {
-                        //Create 3 wallet accounts
-                        //Only 3 blockchains involved
+						//Create wallet accounts
+                        //Only blockchains involved
                         string masterkey = GenerateMasterKey();
                         if (my_wallet_pass.Length > 0)
                         {
@@ -2417,7 +2670,7 @@ namespace NebliDex_Linux
                         {
                             file.WriteLine(masterkey);
                         }
-                        file.WriteLine(i); //Wallet type
+                        file.WriteLine(i); //Wallet blockchain type
                         file.WriteLine("1"); //Only 1 account
                         ExtKey priv_key = GeneratePrivateKey(masterkey, 0);
                         Network my_net;
@@ -2430,7 +2683,12 @@ namespace NebliDex_Linux
                             my_net = Network.TestNet;
                         }
                         string privatekey = priv_key.ToString(my_net);
-                        string myaddress = GenerateCoinAddress(priv_key, i);
+						string myaddress = GenerateCoinAddress(priv_key, GetWalletType(i));
+                        if (i == 6)
+                        {
+                            //Calculate the Ethereum address from the private key
+                            myaddress = GenerateEthAddress(privatekey);
+                        }
                         if (my_wallet_pass.Length > 0)
                         {
                             privatekey = AESEncrypt(privatekey, my_wallet_pass);
@@ -2443,19 +2701,27 @@ namespace NebliDex_Linux
             }
 
             //Now load the wallet information
+			int this_wallet_version = 0;
             using (System.IO.StreamReader file2 =
                 new System.IO.StreamReader(@App_Path + "/data/account.dat", false))
             {
-                int i;
-                file2.ReadLine(); //Wallet version
-                int enc = Convert.ToInt32(file2.ReadLine());
-                for (i = 0; i < 3; i++)
+				int i;
+                this_wallet_version = Convert.ToInt32(file2.ReadLine()); //Wallet version
+                int max_wallets = total_cointypes;
+                if (this_wallet_version == 0)
                 {
-                    //Load the 3 wallets
+                    max_wallets = 3;
+                }
+                int enc = Convert.ToInt32(file2.ReadLine());
+				for (i = 0; i < max_wallets; i++)
+                {
+					//Load the wallet
                     Wallet wal = new Wallet();
                     file2.ReadLine(); //Skip the master key
-                    wal.type = Convert.ToInt32(file2.ReadLine()); //Skip the wallet type
-                    int amount = Convert.ToInt32(file2.ReadLine());
+					wal.blockchaintype = Convert.ToInt32(file2.ReadLine()); //Get the wallet blockchain type
+                    wal.type = GetWalletType(wal.blockchaintype);
+
+                    int amount = Convert.ToInt32(file2.ReadLine()); //Amounts of addresses
                     for (int i2 = 1; i2 <= amount; i2++)
                     {
                         if (i2 == amount)
@@ -2523,7 +2789,7 @@ namespace NebliDex_Linux
                     else
                     {
                         //Load BTC after Neblio and LTC after BTC
-                        WalletList.Insert(wal.type, wal);
+						WalletList.Insert(wal.blockchaintype, wal);
                     }
                     if (wal.type == 0)
                     { //NDEX and other NTP1 tokens
@@ -2531,19 +2797,101 @@ namespace NebliDex_Linux
 
                         //NDEX based on NEBL
                         //Make a clone of this wallet but with a different type
-                        for (int i2 = 0; i2 < total_ntp1_tokens; i2++)
+						for (int i2 = 0; i2 < Wallet.total_coin_num; i2++)
                         {
-                            Wallet wal2 = new Wallet();
-                            wal2.type = i2 + 3;
-							if (wal2.Active == true)
-							{
-								wal2.private_key = wal.private_key;
-								wal2.address = wal.address;
-								wal2.ntp1 = true;
-								WalletList.Add(wal2);
-							}
+                            if (Wallet.CoinNTP1(i2) == true && Wallet.CoinActive(i2) == true)
+                            {
+                                //Wallet is Active and NTP1, add it to neblio wallet address                                
+                                Wallet wal2 = new Wallet();
+                                wal2.type = i2;
+                                wal2.private_key = wal.private_key;
+                                wal2.address = wal.address;
+                                wal2.blockchaintype = 0; //Neblio based
+                                WalletList.Add(wal2);
+                            }
                         }
                     }
+                }
+            }
+
+			if (this_wallet_version < accountdat_version)
+            {
+                NebliDexNetLog("Upgrading the wallet now");
+                string[] wallet_lines = File.ReadAllLines(@App_Path + "/data/account.dat"); //Get all the lines from the current account
+                wallet_lines[0] = accountdat_version.ToString();
+                File.WriteAllLines(@App_Path + "/data/account_new.dat", wallet_lines); //Copys information to new file
+                if (this_wallet_version == 0)
+                {
+                    //Update it by adding new wallets
+                    int pos = 3;
+                    int max_wallet = 7;
+                    using (System.IO.StreamWriter file =
+                        new System.IO.StreamWriter(@App_Path + "/data/account_new.dat", true))
+                    {
+                        for (int i = pos; i < max_wallet; i++)
+                        {
+                            //Create wallet accounts
+                            //Only blockchains involved
+                            string masterkey = GenerateMasterKey();
+                            if (my_wallet_pass.Length > 0)
+                            {
+                                file.WriteLine(AESEncrypt(masterkey, my_wallet_pass));
+                            }
+                            else
+                            {
+                                file.WriteLine(masterkey);
+                            }
+                            file.WriteLine(i); //Wallet blockchain type
+                            file.WriteLine("1"); //Only 1 account
+                            ExtKey priv_key = GeneratePrivateKey(masterkey, 0);
+                            Network my_net;
+                            if (testnet_mode == false)
+                            {
+                                my_net = Network.Main;
+                            }
+                            else
+                            {
+                                my_net = Network.TestNet;
+                            }
+                            string privatekey = priv_key.ToString(my_net);
+                            string myaddress = GenerateCoinAddress(priv_key, GetWalletType(i));
+                            if (i == 6)
+                            {
+                                //Calculate the Ethereum address from the private key
+                                myaddress = GenerateEthAddress(privatekey);
+                            }
+                            //And now add the wallet files
+                            Wallet wal = new Wallet();
+                            wal.blockchaintype = i;
+                            wal.type = GetWalletType(i);
+                            wal.address = myaddress;
+                            wal.private_key = privatekey; //Get the private key before it is encrypted
+                            WalletList.Insert(wal.blockchaintype, wal);
+                            if (my_wallet_pass.Length > 0)
+                            {
+                                privatekey = AESEncrypt(privatekey, my_wallet_pass);
+                            }
+                            file.WriteLine(privatekey);
+                            file.WriteLine(myaddress);
+                        }
+                        file.Flush();
+                    }
+                    this_wallet_version++;
+                }
+
+                //Future versions will go here
+
+                //Move the files
+                if (File.Exists(App.App_Path + "/data/account_new.dat") != false)
+                {
+                    File.Delete(App.App_Path + "/data/account.dat");
+                    File.Move(App.App_Path + "/data/account_new.dat", App.App_Path + "/data/account.dat");
+                }
+
+                //Also delete the old electrum nodes list as the client will find the new nodes
+                if (File.Exists(App_Path + "/data/electrum_peers.dat") == true)
+                {
+                    File.Delete(App_Path + "/data/electrum_peers.dat");
                 }
             }
 			return true;
@@ -2633,34 +2981,43 @@ namespace NebliDex_Linux
             }
 
             //This function will add a private key (with address as well) for all wallets 1 by 1
-            for (int i = 0; i < 3; i++)
+			for (int i = 0; i < total_cointypes; i++)
             {
 
                 //So first do a test transaction to make sure the transaction can be created
-                string curr_add = GetWalletAddress(i);
+                int wallet_type = GetWalletType(i);
+                string curr_add = GetWalletAddress(wallet_type);
                 decimal bal = 0;
                 Transaction testtx = null;
-                if (i == 0)
+                Nethereum.Signer.TransactionChainId testeth_tx = null;
+                if (wallet_type == 0)
                 { //Neblio
                     testtx = CreateNTP1AllTokenTransfer(curr_add);
                 }
                 else
                 {
-                    bal = GetWalletAmount(i); //Get blockchain balance
+                    bal = GetWalletAmount(wallet_type); //Get blockchain balance
                     if (bal > 0)
                     {
-                        testtx = CreateSignedP2PKHTx(i, bal, curr_add, false, false);
+                        if (i != 6)
+                        {
+                            testtx = CreateSignedP2PKHTx(wallet_type, bal, curr_add, false, false);
+                        }
+                        else
+                        {
+                            testeth_tx = CreateSignedEthereumTransaction(curr_add, bal, false, 0, "");
+                        }
                     }
                 }
 
                 //All Neblio based tokens are the same address as the neblio wallet
                 string new_add = "";
-                if (testtx != null)
+                if (testtx != null || testeth_tx != null)
                 {
-                    new_add = AddNewWalletAddress(i); //Will give us our new address that we own
-                                                      //Then we need to send to this address
-                                                      //Now create a real transaction
-                    if (i == 0)
+                    new_add = AddNewWalletAddress(wallet_type); //Will give us our new address that we own
+                                                                //Then we need to send to this address
+                                                                //Now create a real transaction
+                    if (wallet_type == 0)
                     { //Neblio
                       //First send all the tokens
                       //There is a specific transaction for neblio tokens + neblio
@@ -2669,10 +3026,10 @@ namespace NebliDex_Linux
                         {
                             //Broadcast and save the result
                             bool timeout;
-                            string txhash = TransactionBroadcast(0, tx.ToHex(), out timeout);
+                            string txhash = TransactionBroadcast(wallet_type, tx.ToHex(), out timeout);
                             if (txhash.Length > 0)
                             {
-                                bal = GetWalletAmount(i); //Get blockchain balance
+                                bal = GetWalletAmount(wallet_type); //Get blockchain balance
                                 AddMyTxToDatabase(tx.GetHash().ToString(), curr_add, new_add, bal, 0, 2, UTCTime());
                                 UpdateWalletStatus(0, 2); //Wait mode
                             }
@@ -2680,11 +3037,25 @@ namespace NebliDex_Linux
                     }
                     else
                     {
-                        bal = GetWalletAmount(i); //Get blockchain balance
-                        Transaction tx = CreateSignedP2PKHTx(i, bal, new_add, true, false);
-                        if (tx != null)
+                        bal = GetWalletAmount(wallet_type); //Get blockchain balance
+                        if (testtx != null)
                         {
-                            AddMyTxToDatabase(tx.GetHash().ToString(), GetWalletAddress(i), new_add, bal, i, 2, UTCTime());
+                            Transaction tx = CreateSignedP2PKHTx(wallet_type, bal, new_add, true, false);
+                            if (tx != null)
+                            {
+                                AddMyTxToDatabase(tx.GetHash().ToString(), curr_add, new_add, bal, wallet_type, 2, UTCTime());
+                            }
+                        }
+                        else if (testeth_tx != null)
+                        {
+                            Nethereum.Signer.TransactionChainId eth_tx = CreateSignedEthereumTransaction(new_add, bal, false, 0, "");
+                            bool timeout;
+                            TransactionBroadcast(wallet_type, eth_tx.Signed_Hex, out timeout);
+                            if (timeout == false)
+                            {
+                                UpdateWalletStatus(wallet_type, 2); //Set to wait
+                                AddMyTxToDatabase(eth_tx.HashID, curr_add, new_add, bal, wallet_type, 2, -1); //Withdrawal
+                            }
                         }
                     }
                 }
@@ -2709,10 +3080,11 @@ namespace NebliDex_Linux
 
         }
 
-        public static string AddNewWalletAddress(int wallet)
+		public static string AddNewWalletAddress(int wallet)
         {
             //Open the wallet and get all the info
             string new_add = "";
+            int blockchain = GetWalletBlockchainType(wallet);
             using (System.IO.StreamReader file_in =
                 new System.IO.StreamReader(@App_Path + "/data/account.dat", false))
             {
@@ -2722,16 +3094,16 @@ namespace NebliDex_Linux
                     file_in.ReadLine(); //Skip version
                     int enc = Convert.ToInt32(file_in.ReadLine()); //Find out if encrypted
 
-                    file_out.WriteLine(0);
+                    file_out.WriteLine(accountdat_version);
                     file_out.WriteLine(enc);
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < total_cointypes; i++)
                     {
                         string master = file_in.ReadLine(); //Get master key
                         file_out.WriteLine(master);
-                        int wtype = Convert.ToInt32(file_in.ReadLine()); //Get the wallet type
+                        int wtype = Convert.ToInt32(file_in.ReadLine()); //Get the wallet blockchain type
                         int amount = Convert.ToInt32(file_in.ReadLine()); //Get number of subkeys for master
                         file_out.WriteLine(wtype);
-                        if (wallet == wtype)
+                        if (blockchain == wtype)
                         {
                             //This is the wallet we are updating
                             file_out.WriteLine(amount + 1);
@@ -2746,7 +3118,7 @@ namespace NebliDex_Linux
                             file_out.WriteLine(file_in.ReadLine());
                             file_out.WriteLine(file_in.ReadLine());
                         }
-                        if (wallet == wtype)
+                        if (blockchain == wtype)
                         {
                             //Now add our new address to the wallet
                             if (enc > 0)
@@ -2765,6 +3137,11 @@ namespace NebliDex_Linux
                             }
                             string privatekey = my_new_key.ToString(my_net);
                             string myaddress = GenerateCoinAddress(my_new_key, wallet);
+                            if (blockchain == 6)
+                            {
+                                //Calculate the Ethereum address from the private key
+                                myaddress = GenerateEthAddress(privatekey);
+                            }
                             new_add = myaddress;
                             if (enc > 0)
                             {
@@ -2798,9 +3175,9 @@ namespace NebliDex_Linux
                     int enc = Convert.ToInt32(file_in.ReadLine()); //Find out if encrypted
                     if (enc > 0) { return; }
 
-                    file_out.WriteLine(0);
+                    file_out.WriteLine(accountdat_version);
                     file_out.WriteLine(1);
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < total_cointypes; i++)
                     {
                         string master = file_in.ReadLine(); //Get master key
                         file_out.WriteLine(AESEncrypt(master, my_wallet_pass));
@@ -2839,9 +3216,9 @@ namespace NebliDex_Linux
                     int enc = Convert.ToInt32(file_in.ReadLine()); //Find out if encrypted
                     if (enc == 0) { return; }
 
-                    file_out.WriteLine(0); //File version
+                    file_out.WriteLine(accountdat_version); //File version
                     file_out.WriteLine(0);
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < total_cointypes; i++)
                     {
                         string master = file_in.ReadLine(); //Get master key
                         file_out.WriteLine(AESDecrypt(master, my_wallet_pass));
@@ -3096,7 +3473,7 @@ namespace NebliDex_Linux
             return false;
         }
 
-        public static bool CheckMarketFees(int market, int type, decimal amount, ref string msg, bool taker)
+		public static bool CheckMarketFees(int market, int type, decimal amount, ref string msg, bool taker)
         {
             //The wallet must have enough funds to cover the market fees as well
             decimal vn_fee = 0;
@@ -3116,17 +3493,21 @@ namespace NebliDex_Linux
                 }
 
                 sendwallet = MarketList[market].base_wallet;
-                if (sendwallet == 1)
-                { //BTC
-                    block_fee = blockchain_fee[1]; //Overestimate the fee (average tx is 225 bytes), need more since sending to contract
-                }
-                else if (sendwallet == 2)
-                { //LTC
-                    block_fee = blockchain_fee[2]; //Overestimate the fee
+                int sendwallet_blockchaintype = GetWalletBlockchainType(sendwallet);
+                if (sendwallet_blockchaintype == 0)
+                {
+                    block_fee = blockchain_fee[0] * 4; //Expected amount of Neblio to spend
                 }
                 else
                 {
-                    block_fee = blockchain_fee[0] * 4;
+                    if (sendwallet_blockchaintype != 6)
+                    {
+                        block_fee = blockchain_fee[sendwallet_blockchaintype]; //Overestimate the fee (average tx is 225 bytes), need more since sending to contract
+                    }
+                    else
+                    {
+                        block_fee = GetEtherContractTradeFee();
+                    }
                 }
             }
             else
@@ -3142,26 +3523,44 @@ namespace NebliDex_Linux
                 }
 
                 sendwallet = MarketList[market].trade_wallet;
-                if (sendwallet == 1)
-                { //BTC
-                    block_fee = blockchain_fee[1]; //Overestimate the fee
-                }
-                else if (sendwallet == 2)
-                { //LTC
-                    block_fee = blockchain_fee[2]; //Overestimate the fee
+                int sendwallet_blockchaintype = GetWalletBlockchainType(sendwallet);
+                if (sendwallet_blockchaintype == 0)
+                {
+                    block_fee = blockchain_fee[0] * 4; //Expected amount of Neblio to spend
+                    int basewallet_blockchaintype = GetWalletBlockchainType(MarketList[market].base_wallet);
+                    if (sendwallet == 3 && basewallet_blockchaintype != 0)
+                    { //Sending to non-Neblio wallet
+                        block_fee = blockchain_fee[0] * 14; //When selling NDEX to those who don't hold NEBL, give them extra 5 trades
+                    }
                 }
                 else
                 {
-                    block_fee = blockchain_fee[0] * 4; //Which will probably be the case
-                    if (sendwallet == 3 && MarketList[market].base_wallet != 0)
+                    if (sendwallet_blockchaintype != 6)
                     {
-                        block_fee = blockchain_fee[0] * 14; //When selling NDEX to those who don't hold NEBL, give them extra 5 trades
+                        block_fee = blockchain_fee[sendwallet_blockchaintype]; //Overestimate the fee (average tx is 225 bytes), need more since sending to contract
+                    }
+                    else
+                    {
+                        //We are sending ethereum to eventual contract, will need at least 265,000 units of gas to cover transfer
+                        block_fee = GetEtherContractTradeFee();
                     }
                 }
             }
 
+            //This is unique to Ethereum, but both the sender and receiver must have a little ethereum to interact with the ethereum contract
+            if (GetWalletBlockchainType(MarketList[market].trade_wallet) == 6 || GetWalletBlockchainType(MarketList[market].base_wallet) == 6)
+            {
+                decimal ether_fee = GetEtherContractRedeemFee();
+                if (GetWalletAmount(GetWalletType(6)) < ether_fee)
+                {
+                    msg = "Your Ether wallet requires a small amount of Ether (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", ether_fee) + " ETH) to interact with the Swap contract.";
+                    return false;
+                }
+            }
+
             decimal mybalance = 0;
-            if (sendwallet > 2)
+            bool ntp1_wallet = IsWalletNTP1(sendwallet);
+            if (ntp1_wallet == true)
             {
                 //NTP1 transactions, only balance that matters is neblio for fees
                 mybalance = GetWalletAmount(0);
@@ -3214,7 +3613,7 @@ namespace NebliDex_Linux
                 if (mybalance < blockchain_fee[0] * 5)
                 {
                     //Not enough to pay for fees
-                    msg = "This transaction requires a small NEBL balance (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", blockchain_fee[0] * 5) + " NEBL) to pay for blockchain fees.";
+                    msg = "This transaction requires a small NEBL balance (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", blockchain_fee[0] * 5) + " NEBL) to pay for NDEX blockchain fees.";
                     return false;
                 }
             }
@@ -3252,8 +3651,25 @@ namespace NebliDex_Linux
             }
             return "";
         }
-		
-	//New functions for my saved orders
+
+		public static int GetWalletBlockchainType(int type)
+        {
+            //This will return the blockchain type of the selected wallet type
+            return Wallet.BlockchainType(type);
+        }
+
+        public static bool IsWalletNTP1(int type)
+        {
+            //This will return true if wallet is of NTP1 type
+            return Wallet.CoinNTP1(type);
+        }
+
+        public static int GetWalletType(int blockchaintype)
+        {
+            //Returns the wallet type based on the blockchain
+            return Wallet.WalletType(blockchaintype);
+        }
+
         //Check orders, load orders clear orders, remove 1 order, add 1 order, update 1 order
         //This will only store maker orders
         public static bool CheckSavedOrders()
