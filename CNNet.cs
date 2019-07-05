@@ -3337,10 +3337,38 @@ namespace NebliDex_Linux
 
                 string redeemscript_add = tx["trade.contract_add"].ToString();
 
+				//If taker is sending ethereum
+                bool taker_sending_eth = false;
+                if (req.type == 0)
+                {
+                    //Taker buying
+                    if (GetWalletBlockchainType(MarketList[req.market].base_wallet) == 6)
+                    {
+                        //Sending eth, only possible if eth is base market wallet
+                        taker_sending_eth = true;
+                    }
+                }
+                else
+                {
+                    //Taker selling
+                    if (GetWalletBlockchainType(MarketList[req.market].trade_wallet) == 6)
+                    {
+                        //Sending eth
+                        taker_sending_eth = true;
+                    }
+                }
+
                 JObject databasejs = new JObject();
                 databasejs["utctime"] = req.utctime;
                 databasejs["nonce"] = req.order_nonce_ref;
-                databasejs["redeemscript_add"] = redeemscript_add;
+                if (taker_sending_eth == false)
+                {
+                    databasejs["redeemscript_add"] = redeemscript_add;
+                }
+                else
+                {
+                    databasejs["redeemscript_add"] = tx["trade.secret_hash"]; //Store the hash of the secret for transaction monitoring
+                }
                 databasejs["cn_pubkey"] = my_pubkey;
                 databasejs["market"] = req.market;
                 databasejs["type"] = req.type;
@@ -3449,6 +3477,7 @@ namespace NebliDex_Linux
                 if (taker_tx.Length == 0)
                 {
                     //This is possible if the trade is canceled early by maker
+					NebliDexNetLog("Trade was canceled early by maker before broadcasting");
                     return null;
                 }
 

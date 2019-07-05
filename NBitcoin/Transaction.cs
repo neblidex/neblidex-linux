@@ -3,6 +3,7 @@ using NBitcoin.DataEncoders;
 using NBitcoin.Protocol;
 using NBitcoin.RPC;
 using System;
+using System.Numerics;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -757,12 +758,15 @@ namespace NBitcoin
 
 		public TransactionSignature Sign(Key key, ICoin coin, SigHash sigHash)
 		{
+			if(Transaction.useForkID == true){ //ForkID is used by BCH to make the hashing similar to BTC Segwit
+				sigHash |= SigHash.ForkID;
+			}
 			var hash = GetSignatureHash(coin, sigHash);
 			return key.Sign(hash, sigHash);
 		}
 
 		public uint256 GetSignatureHash(ICoin coin, SigHash sigHash = SigHash.All)
-		{
+		{						
 			return Script.SignatureHash(coin.GetScriptCode(), Transaction, (int)Index, sigHash, coin.TxOut.Value, coin.GetHashVersion());
 		}
 
@@ -1165,6 +1169,8 @@ namespace NBitcoin
 		LockTime nLockTime;
 		uint nTimeStamp = (uint)App.UTCTime(); //The timestamp for the transaction
 		public bool hasTimeStamp = false; //This is for neblio only transactions
+		public bool useForkID = false; //BCH uses the forkID to hash
+		public bool useHASH256 = true; //Groestlcoin only hashes the signature once for some reason
 
 		public Transaction()
 		{
@@ -1337,7 +1343,11 @@ namespace NBitcoin
 			{
 				TransactionOptions = TransactionOptions.None
 			});
-			return Hashes.Hash256(ms.ToArrayEfficient());
+			if(useHASH256 == true){
+				return Hashes.Hash256(ms.ToArrayEfficient());
+			}else{
+				return new uint256(Hashes.SHA256(ms.ToArrayEfficient()));
+			}
 		}
 		public uint256 GetWitHash()
 		{
@@ -1503,6 +1513,45 @@ namespace NBitcoin
 					coins.Add(new Coin(txin.PrevOut, new TxOut()
 					{
 						ScriptPubKey = txin.ScriptSig
+					}));
+				}
+
+			}
+			Sign(key, coins.ToArray());
+		}
+		
+		public void Sign(Key key, bool assumeP2SH, List<BigInteger> utxo_values)
+		{
+			List<Coin> coins = new List<Coin>();
+			for(int i = 0; i < Inputs.Count; i++)
+			{
+				var txin = Inputs[i];
+				if(Script.IsNullOrEmpty(txin.ScriptSig))
+					throw new InvalidOperationException("ScriptSigs should be filled with either previous scriptPubKeys or redeem script (for P2SH)");
+				if(assumeP2SH)
+				{
+					var p2shSig = PayToScriptHashTemplate.Instance.ExtractScriptSigParameters(txin.ScriptSig);
+					if(p2shSig == null)
+					{
+						coins.Add(new ScriptCoin(txin.PrevOut, new TxOut()
+						{
+							ScriptPubKey = txin.ScriptSig.PaymentScript,
+						}, txin.ScriptSig));
+					}
+					else
+					{
+						coins.Add(new ScriptCoin(txin.PrevOut, new TxOut()
+						{
+							ScriptPubKey = p2shSig.RedeemScript.PaymentScript
+						}, p2shSig.RedeemScript));
+					}
+				}
+				else
+				{
+					coins.Add(new Coin(txin.PrevOut, new TxOut()
+					{
+						ScriptPubKey = txin.ScriptSig,
+						Value = new Money(utxo_values[i])
 					}));
 				}
 

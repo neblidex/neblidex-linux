@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading.Tasks;
 using System.Threading;
 using NBitcoin;
+using Nethereum;
 using Gtk;
 
 namespace NebliDex_Linux
@@ -109,25 +110,38 @@ namespace NebliDex_Linux
                 App.MessageBox(this, "Notice", msg, "OK");
                 return;
             }
-
-            //If sending out tokens, make sure that account has enough NEBL for gas
-            if (mywallet > 2)
+                        
+			//If sending out tokens, make sure that account has enough NEBL for gas
+            int wallet_blockchain = App.GetWalletBlockchainType(mywallet);
+            if (wallet_blockchain == 0 && App.IsWalletNTP1(mywallet) == true)
             {
                 decimal nebl_bal = App.GetWalletAmount(0);
-                if (nebl_bal < App.blockchain_fee[0] * 5)
+                if (nebl_bal < App.blockchain_fee[0] * 3)
                 {
-                    //We need at least 0.00055 to send out tokens
-                    App.MessageBox(this, "Notice", "You do not have enough NEBL (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", App.blockchain_fee[0] * 5) + " NEBL) to withdraw tokens!", "OK");
+                    //We need at least 0.00033 to send out tokens
+					App.MessageBox(this, "Notice", "You do not have enough NEBL (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", App.blockchain_fee[0] * 3) + " NEBL) to withdraw tokens!", "OK");
                     return;
                 }
             }
             else
             {
-                //Make sure what we are sending is greater than the dust balance
-                if (amount < App.dust_minimum[mywallet])
+                if (wallet_blockchain != 6)
                 {
-                    App.MessageBox(this, "Notice", "This amount is too small to send as it is lower than the dust minimum", "OK");
-                    return;
+                    //Make sure what we are sending is greater than the dust balance
+                    if (amount < App.dust_minimum[wallet_blockchain])
+                    {
+						App.MessageBox(this, "Notice", "This amount is too small to send as it is lower than the dust minimum", "OK");
+                        return;
+                    }
+                }
+                else
+                {
+                    //Ethereum
+                    if (amount <= App.GetEtherWithdrawalFee())
+                    {
+						App.MessageBox(this, "Notice", "This amount is too small to send as it is lower than the gas fee", "OK");
+                        return;
+                    }
                 }
             }
 
@@ -159,6 +173,17 @@ namespace NebliDex_Linux
                     await Task.Run(() => App.QueueAllOpenOrders());
                 }
 
+				if (wallet_blockchain == 4)
+                {
+                    //Bitcoin Cash
+                    //Try to convert to old address, exception will be thrown if already old address
+                    try
+                    {
+                        destination = SharpCashAddr.Converter.ToOldAddress(destination);
+                    }
+                    catch (Exception) { }
+                }
+
                 //Make sure to run in another thread
 				Application.Invoke(delegate
                 {
@@ -183,16 +208,45 @@ namespace NebliDex_Linux
 
         private bool PerformWithdrawal(int wallet, decimal amount, string des)
         {
-            Transaction tx = App.CreateSignedP2PKHTx(wallet, amount, des, true, false);
-            //Then add to database
-            if (tx != null)
+			int blockchain = App.GetWalletBlockchainType(wallet);
+            if (blockchain != 6)
             {
-                //Now write to the transaction log
-                App.AddMyTxToDatabase("" + tx.GetHash(), App.GetWalletAddress(wallet), des, amount, wallet, 2, -1); //Withdrawal
-                return true;
+                Transaction tx = App.CreateSignedP2PKHTx(wallet, amount, des, true, false);
+                //Then add to database
+                if (tx != null)
+                {
+                    //Now write to the transaction log
+                    App.AddMyTxToDatabase(tx.GetHash().ToString(), App.GetWalletAddress(wallet), des, amount, wallet, 2, -1); //Withdrawal
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
             else
             {
+                //This is Ethereum transaction out
+                //This function will estimate the gas used if sending to a contract
+                Nethereum.Signer.TransactionChainId tx = App.CreateSignedEthereumTransaction(des, amount, false, 0, "");
+                //Then add to database
+                if (tx != null)
+                {
+                    //Broadcast this transaction, and write to log regardless of whether it returns a hash or not
+                    //Now write to the transaction log
+                    bool timeout;
+                    App.TransactionBroadcast(wallet, tx.Signed_Hex, out timeout);
+                    if (timeout == false)
+                    {
+                        App.UpdateWalletStatus(wallet, 2); //Set to wait
+                        App.AddMyTxToDatabase(tx.HashID, App.GetWalletAddress(wallet), des, amount, wallet, 2, -1); //Withdrawal
+                        return true;
+                    }
+                    else
+                    {
+                        App.NebliDexNetLog("Transaction broadcast timed out, not connected to internet");
+                    }
+                }
                 return false;
             }
         }

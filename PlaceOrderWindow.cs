@@ -90,7 +90,7 @@ namespace NebliDex_Linux
             Total_Input.Text = String.Format(CultureInfo.InvariantCulture, "{0:0.########}", amount * price);
             //The default minimum
             decimal min_amount = amount / 100m;
-            if (App.MarketList[App.exchange_market].trade_wallet > 2)
+			if (App.IsWalletNTP1(App.MarketList[App.exchange_market].trade_wallet) == true)
             {
                 min_amount = Math.Round(min_amount); //Round to nearest whole number
                 if (min_amount == 0) { min_amount = 1; }
@@ -108,14 +108,14 @@ namespace NebliDex_Linux
             decimal total = decimal.Parse(Total_Input.Text, CultureInfo.InvariantCulture);
             if (total <= 0) { return; }
             decimal amount = total / price;
-            if (App.MarketList[App.exchange_market].trade_wallet > 2)
+			if (App.IsWalletNTP1(App.MarketList[App.exchange_market].trade_wallet) == true)
             {
                 amount = Math.Round(amount); //Round to nearest whole number
                 if (amount == 0) { amount = 1; }
             }
             Amount_Input.Text = String.Format(CultureInfo.InvariantCulture, "{0:0.########}", amount);
             decimal min_amount = amount / 100m;
-            if (App.MarketList[App.exchange_market].trade_wallet > 2)
+			if (App.IsWalletNTP1(App.MarketList[App.exchange_market].trade_wallet) == true)
             {
                 min_amount = Math.Round(min_amount); //Round to nearest whole number
                 if (min_amount == 0) { min_amount = 1; }
@@ -220,27 +220,35 @@ namespace NebliDex_Linux
 				App.MessageBox(this, "Notice",msg, "OK");
                 return;
             }
-
-            //Make sure that total is greater than block rates for both markets
+            
+			//Make sure that total is greater than blockrate for the base market and the amount is greater than blockrate for trade market
             decimal block_fee1 = 0;
             decimal block_fee2 = 0;
-            if (App.MarketList[App.exchange_market].trade_wallet > 2 || App.MarketList[App.exchange_market].trade_wallet == 0)
+            int trade_wallet_blockchaintype = App.GetWalletBlockchainType(App.MarketList[App.exchange_market].trade_wallet);
+            int base_wallet_blockchaintype = App.GetWalletBlockchainType(App.MarketList[App.exchange_market].base_wallet);
+            block_fee1 = App.blockchain_fee[trade_wallet_blockchaintype];
+            block_fee2 = App.blockchain_fee[base_wallet_blockchaintype];
+
+            //Now calculate the totals for ethereum blockchain
+            if (trade_wallet_blockchaintype == 6)
             {
-                block_fee1 = App.blockchain_fee[0]; //Neblio fee
+                block_fee1 = App.GetEtherContractTradeFee();
             }
-            if (App.MarketList[App.exchange_market].base_wallet >= 0 && App.MarketList[App.exchange_market].base_wallet < 3)
+            if (base_wallet_blockchaintype == 6)
             {
-                block_fee2 = App.blockchain_fee[App.MarketList[App.exchange_market].base_wallet]; //Base fee
+                block_fee2 = App.GetEtherContractTradeFee();
             }
-            if (total < block_fee1 || total < block_fee2 || amount < block_fee1 || amount < block_fee2)
+
+            if (total < block_fee2 || amount < block_fee1)
             {
                 //The trade amount is too small
-				App.MessageBox(this, "Notice","This trade amount is too small to create because it is lower than the blockchain fee.", "OK");
+				App.MessageBox(this, "Notice", "This trade amount is too small to create because it is lower than the blockchain fee.", "OK");
                 return;
             }
 
             //Because tokens are indivisible at the moment, amounts can only be in whole numbers
-            if (App.MarketList[App.exchange_market].trade_wallet > 2)
+			bool ntp1_wallet = App.IsWalletNTP1(App.MarketList[App.exchange_market].trade_wallet);
+            if (ntp1_wallet == true)
             {
                 if (Math.Abs(Math.Round(amount) - amount) > 0)
                 {

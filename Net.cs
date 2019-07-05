@@ -11,11 +11,14 @@ using System;
 using Gtk;
 using System.Data;
 using NBitcoin;
+using Nethereum;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using System.Numerics;
 using System.Text;
 using System.Threading;
@@ -34,13 +37,7 @@ namespace NebliDex_Linux
 	/// </summary>
 	public partial class App
 	{
-		public static List<string> BTCElectrumDNSList = new List<string>();
-		public static List<int> BTCElectrumDNSPortList = new List<int>();
-		
-		public static List<string> LTCElectrumDNSList = new List<string>();
-		public static List<int> LTCElectrumDNSPortList = new List<int>();
-		
-		public static List<string> NEBLNTP1List = new List<string>();
+		public static string NEBLAPI_server; //URL of the Neblio API (used by default but not required)
 		
 		public static List<DexConnection> DexConnectionList = new List<DexConnection>();
 		public static AsyncCallback DexConnCallback = new AsyncCallback(DexConnectionCallback);
@@ -54,13 +51,20 @@ namespace NebliDex_Linux
 			public int version; //The version of the client on the other side
 			public int contype; //Connection type
 			//0 - Neblio electrum
-			//1 - Bitcoin electrum
-			//2 - Litecoin electrum
+			//1 - Electrum node
+            //2 - Not used anymore
 			//3 - CN connection
 			//4 - Validation connection
+			public int blockchain_type;
+            //1 - Bitcoin based
+            //2 - Litecoin based
+            //3 - Groestlcoin based
+            //4 - Bitcoin Cash (ABC) based
+            //5 - Monacoin based
 			
 			public TcpClient client;
 			public NetworkStream stream;
+			public SslStream secure_stream = null; //Used for all electrum servers
 			public Byte[] buf = new Byte[256]; //For the async connection
 			
 			public int lasttouchtime; //UTCTime of last activity
@@ -94,6 +98,10 @@ namespace NebliDex_Linux
 				open = false;
 				try {
 					stream.Close();
+					if (secure_stream != null)
+                    {
+                        secure_stream.Close();
+                    }
 					client.Close();	
 				} catch (Exception e) {
 					NebliDexNetLog("Error closing connection, may already be closed: "+e.ToString());
@@ -113,112 +121,193 @@ namespace NebliDex_Linux
 			public int creation_time;
 			public bool delete; //This is a flag to remove the object from list
 		}
+
+		//Create a list of all the DNSSeeds for all electrum nodes
+        public static List<DNSSeed> DNSSeedList = new List<DNSSeed>();
+
+        //New class that represents DNS seed and type
+        public class DNSSeed
+        {
+            public string domain;
+            public int port;
+            public bool ssl;
+            public int cointype;
+            //Possible cointypes are:
+            //0 - Neblio based (including tokens)
+            //1 - Bitcoin based
+            //2 - Litecoin based
+            //3 - Groestlcoin based
+            //4 - Bitcoin Cash (ABC) based
+            //5 - Monacoin based
+            public DNSSeed(string d, int p, bool s, int ct)
+            {
+                domain = d;
+                port = p;
+                ssl = s;
+                cointype = ct;
+            }
+        }
 		
 		public static void AddDNSServers()
         {
             //This is a preprogrammed list of all the potential DNS servers
-            NEBLNTP1List.Clear();
-            BTCElectrumDNSList.Clear();
-            BTCElectrumDNSPortList.Clear();
-            LTCElectrumDNSList.Clear();
-            LTCElectrumDNSPortList.Clear();
+            if (DNSSeedList.Count > 0) { return; } //No need to do this more than once
 
             //NEBL Electrum DNS list
             if (testnet_mode == false)
             {
                 //We are converting Neblio to NTP1 node system
                 //It uses HTTPS protocol
-                NEBLNTP1List.Add("https://ntp1node.nebl.io");
+                NEBLAPI_server = "https://ntp1node.nebl.io"; //Critical Nodes server as backup to API server going down
 
-                //BTC Electrum DNS list
-                //Will connect to electrum via port 50001 (unsecure tcp)
-                BTCElectrumDNSList.Add("electrum.qtornado.com");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("electrumx.bot.nu");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("electrum.hsmiths.com");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("electrum.be");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("fortress.qtornado.com");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("electrum-server.ninja");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("electrumx-core.1209k.com");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("erbium1.sytes.net");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("daedalus.bauerj.eu");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("kirsche.emzy.de");
-                BTCElectrumDNSPortList.Add(50001);
+                //Bitcoin Electrum DNS Seeds
+                //Switching over to secure SSL
+                DNSSeedList.Add(new DNSSeed("fortress.qtornado.com", 50002, true, 1)); //Adding a Bitcoin Seed at port 50002
+                DNSSeedList.Add(new DNSSeed("aspinall.io", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrumx-core.1209k.com", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrum.hodlister.co", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("btc.theblains.org", 50006, true, 1));
+                DNSSeedList.Add(new DNSSeed("kirsche.emzy.de", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("e1.keff.org", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("btc.smsys.me", 995, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrum.coineuskal.com", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("technetium.network", 50002, true, 1));
 
-                //LTC Electrum DNS list
-                //Also port 50001
-                LTCElectrumDNSList.Add("backup.electrum-ltc.org");
-                LTCElectrumDNSPortList.Add(50001);
-                LTCElectrumDNSList.Add("electrum-ltc.bysh.me");
-                LTCElectrumDNSPortList.Add(50001);
-                LTCElectrumDNSList.Add("electrum-ltc.wilv.in");
-                LTCElectrumDNSPortList.Add(50001);
-                LTCElectrumDNSList.Add("electrum.ltc.xurious.com");
-                LTCElectrumDNSPortList.Add(50001);
-                LTCElectrumDNSList.Add("ltc.rentonisk.com");
-                LTCElectrumDNSPortList.Add(50001);
+                //Litecoin Electrum DNS Seeds
+                DNSSeedList.Add(new DNSSeed("backup.electrum-ltc.org", 443, true, 2));
+                DNSSeedList.Add(new DNSSeed("electrum-ltc.bysh.me", 50002, true, 2));
+                DNSSeedList.Add(new DNSSeed("node.ispol.sk", 50004, true, 2));
+                DNSSeedList.Add(new DNSSeed("ltc.rentonisk.com", 50002, true, 2));
+                DNSSeedList.Add(new DNSSeed("electrum.ltc.xurious.com", 50002, true, 2));
+
+                //Groestlcoin
+                DNSSeedList.Add(new DNSSeed("electrum35.groestlcoin.org", 50002, true, 3));
+                DNSSeedList.Add(new DNSSeed("electrum23.groestlcoin.org", 50002, true, 3));
+                DNSSeedList.Add(new DNSSeed("electrum10.groestlcoin.org", 50002, true, 3));
+                DNSSeedList.Add(new DNSSeed("35.178.21.146", 50002, true, 3));
+                DNSSeedList.Add(new DNSSeed("electrum18.groestlcoin.org", 50002, true, 3));
+                DNSSeedList.Add(new DNSSeed("18.194.84.135", 50002, true, 3));
+
+                //Bitcoin Cash
+                DNSSeedList.Add(new DNSSeed("bitcoin.dragon.zone", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("electrum.imaginary.cash", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("cash.theblains.org", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("electron.coinucopia.io", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("electrumx-cash.1209k.com", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("blackie.c3-soft.com", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("bch.soul-dev.com", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("bch.loping.net", 50002, true, 4));
+
+                //Monacoin
+                DNSSeedList.Add(new DNSSeed("electrumx1.monacoin.ninja", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrumx2.tamami-foundation.org", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrumx2.monacoin.nl", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrumx2.monacoin.ninja", 50002, true, 5));
+
+                //Add the Ethereum API Nodes
+                EthereumApiNodeList.Add(new EthereumApiNode("https://api.etherscan.io/api", 0, false));
+                EthereumApiNodeList.Add(new EthereumApiNode("https://api.myetherwallet.com/eth", 1, false));
+                EthereumApiNodeList.Add(new EthereumApiNode("https://cloudflare-eth.com", 2, false));
+                //Does not use BlockCypher anymore due to rate limits and API key requirements
+                ETH_ATOMICSWAP_ADDRESS = "0xcFd9C086635cee0357729da68810A747B6bC674A"; //The address to the Atomic Swap Contract on Ethereum blockchain
+
             }
             else
             {
                 //It uses HTTPS protocol
-                NEBLNTP1List.Add("https://ntp1node.nebl.io/testnet");
+                NEBLAPI_server = "https://ntp1node.nebl.io/testnet";
 
                 //Various Ports
-                //Bitcoin testnet servers
-                BTCElectrumDNSList.Add("testnet.hsmiths.com");
-                BTCElectrumDNSPortList.Add(53011);
-                BTCElectrumDNSList.Add("testnet.qtornado.com");
-                BTCElectrumDNSPortList.Add(51001);
-                BTCElectrumDNSList.Add("testnet1.bauerj.eu");
-                BTCElectrumDNSPortList.Add(50001);
-                BTCElectrumDNSList.Add("tn.not.fyi");
-                BTCElectrumDNSPortList.Add(55001);
+                //Bitcoin electrum testnet servers
+                DNSSeedList.Add(new DNSSeed("testnet1.bauerj.eu", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("tn.not.fyi", 55002, true, 1));
+                DNSSeedList.Add(new DNSSeed("testnet.hsmiths.com", 53012, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrumx-test.1209k.com", 50002, true, 1));
 
-                //Litecoin, testnet
-                //Port 51001
-                LTCElectrumDNSList.Add("electrum-ltc.bysh.me"); //Sometimes this server lags
-                LTCElectrumDNSPortList.Add(51001);
-                LTCElectrumDNSList.Add("electrum.ltc.xurious.com");
-                LTCElectrumDNSPortList.Add(51001);
+                //Litecoin, electrum testnet
+                DNSSeedList.Add(new DNSSeed("electrum.ltc.xurious.com", 51002, true, 2));
+                DNSSeedList.Add(new DNSSeed("electrum-ltc.bysh.me", 51002, true, 2));
+
+                //Groestlcoin
+                DNSSeedList.Add(new DNSSeed("electrum-test2.groestlcoin.org", 51002, true, 3));
+                DNSSeedList.Add(new DNSSeed("electrum-test1.groestlcoin.org", 51002, true, 3));
+
+                //Bitcoin Cash
+                DNSSeedList.Add(new DNSSeed("blackie.c3-soft.com", 60002, true, 4));
+                DNSSeedList.Add(new DNSSeed("testnet.imaginary.cash", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("electrumx-test-cash.1209k.com", 50002, true, 4));
+
+                //Monacoin
+                DNSSeedList.Add(new DNSSeed("electrumx1.testnet.monacoin.ninja", 51002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrumx1.testnet.monacoin.nl", 51002, true, 5));
+
+                //Add the Ethereum testnet API Nodes
+                EthereumApiNodeList.Add(new EthereumApiNode("https://api-rinkeby.etherscan.io/api", 0, true)); //Using Rinkeby testnet
+                ETH_ATOMICSWAP_ADDRESS = "0xcfd9c086635cee0357729da68810a747b6bc674a"; 
+				//The address to the Atomic Swap Contract on Ethereum Rinkeby blockchain
+               //MyEtherAPI uses Ropsten testnet, not Rinkeby so don't use for testnet
+               //Cloudflare doesn't have testnet connection
+
             }
 
         }
-        public static void FindElectrumServers()
+
+		public static void FindElectrumServers()
         {
             AddDNSServers();
-         
+
+            //This prevents server changes from breaking the protocol
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+
             if (File.Exists(App_Path + "/data/electrum_peers.dat") == false)
             {
-                //This function finds BTC, LTC and NEBLIO electrum servers, gets the list of running servers and saves it
+                //This function finds electrum servers, gets the list of running servers and saves it
 
                 List<string> electrum_list = new List<string>(); //List of all server names
                 List<int> electrum_port = new List<int>();
 
-                for (int m = 0; m < 2; m++)
+                int total_electrum_types = 0;
+                for (int m = 1; m < total_cointypes; m++)
                 {
-                    //Do this for all 2 types of electrum servers, BTC and LTC
+                    //Start at BTC CoinType
+                    //Do this for all electrum servers, BTC and LTC
                     int target_port = 0;
-                    List<string> MyList;
-                    List<int> MyPortList;
-                    if (m == 0)
+                    List<DNSSeed> MyList = new List<DNSSeed>(); //Custom list
+                    if (m == 1)
                     {
-                        MyList = BTCElectrumDNSList;
-                        MyPortList = BTCElectrumDNSPortList;
                         NebliDexNetLog("Finding Bitcoin electrum servers");
+                        total_electrum_types++;
                     }
-                    else
+                    else if (m == 2)
                     {
-                        MyList = LTCElectrumDNSList;
-                        MyPortList = LTCElectrumDNSPortList;
                         NebliDexNetLog("Finding Litecoin electrum servers");
+                        total_electrum_types++;
+                    }
+                    else if (m == 3)
+                    {
+                        NebliDexNetLog("Finding Groestlcoin electrum servers");
+                        total_electrum_types++;
+                    }
+                    else if (m == 4)
+                    {
+                        NebliDexNetLog("Finding Bitcoin Cash electrum servers");
+                        total_electrum_types++;
+                    }
+                    else if (m == 5)
+                    {
+                        NebliDexNetLog("Finding Monacoin electrum servers");
+                        total_electrum_types++;
+                    }
+                    else if (m == 6)
+                    {
+                        continue; //Ethereum doesn't use DexConnection
+                    }
+                    for (int i2 = 0; i2 < DNSSeedList.Count; i2++)
+                    {
+                        if (DNSSeedList[i2].cointype == m)
+                        {
+                            MyList.Add(DNSSeedList[i2]); //Get the specific coin type only
+                        }
                     }
 
                     //Connect to the DNS servers and download the lists of peers including port
@@ -231,16 +320,43 @@ namespace NebliDex_Linux
                         try
                         {
                             uint electrum_id = 0;
-                            IPAddress address = Dns.GetHostAddresses(MyList[pos])[0].MapToIPv4();
-                            target_port = MyPortList[pos];
+                            IPAddress address = Dns.GetHostAddresses(MyList[pos].domain)[0].MapToIPv4();
+                            target_port = MyList[pos].port;
                             TcpClient client = new TcpClient();
-                            //This will wait 5 seconds before moving on (bad connection)
+                            //This will wait 15 seconds before moving on (bad connection)
                             if (ConnectSync(client, address, target_port, 15))
                             {
-                                NebliDexNetLog("Connected To: " + MyList[pos]);
-                                client.ReceiveTimeout = 15000; //5 seconds
+                                NebliDexNetLog("Connected To: " + MyList[pos].domain);
+                                client.ReceiveTimeout = 15000; //15 seconds
                                 client.SendTimeout = 15000;
                                 NetworkStream nStream = client.GetStream(); //Get the stream
+
+                                SslStream secure_nStream = null;
+                                if (MyList[pos].ssl == true)
+                                {
+                                    //Get a secure connection
+                                    secure_nStream = new SslStream(nStream, true, new RemoteCertificateValidationCallback(CheckSSLCertificate), null);
+                                    secure_nStream.ReadTimeout = 15000;
+                                    secure_nStream.WriteTimeout = 15000;
+                                    try
+                                    {
+                                        secure_nStream.AuthenticateAsClient(MyList[pos].domain);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        secure_nStream.Close();
+                                        nStream.Close();
+                                        client.Close();
+                                        throw new Exception("Invalid certificate from server, error: " + e.ToString());
+                                    }
+                                }
+                                else
+                                {
+                                    nStream.Close();
+                                    client.Close();
+                                    throw new Exception("This electrum connection must be SSL");
+                                }
+                                NebliDexNetLog("Securely Connected To: " + MyList[pos].domain);
 
                                 //Create the JSON
                                 JObject js = new JObject();
@@ -251,15 +367,15 @@ namespace NebliDex_Linux
                                 string json_encoded = JsonConvert.SerializeObject(js);
 
                                 Byte[] data = System.Text.Encoding.ASCII.GetBytes(json_encoded + "\r\n");
-                                nStream.Write(data, 0, data.Length); //Write to Server
-                                                                     //And then receive the response
+                                secure_nStream.Write(data, 0, data.Length); //Write to Server
+                                                                            //And then receive the response
                                 Byte[] databuf = new Byte[1024]; //Our buffer
                                 int packet_size = 1;
                                 string response = "";
                                 while (packet_size > 0)
                                 {
-                                    packet_size = NSReadLine(nStream, databuf, 0, databuf.Length); //Read into buffer
-                                                                                                   //Get the string
+                                    packet_size = NSReadLine(secure_nStream, databuf, 0, databuf.Length); //Read into buffer
+                                                                                                          //Get the string
                                     response = response + System.Text.Encoding.ASCII.GetString(databuf, 0, packet_size);
                                     if (packet_size < databuf.Length)
                                     {
@@ -272,11 +388,11 @@ namespace NebliDex_Linux
                                 js = JObject.Parse(response);
                                 if (js["result"] == null)
                                 { //Something wrong with this node
+                                    secure_nStream.Close();
                                     nStream.Close();
                                     client.Close();
-                                    //Try another
-                                    pos = (int)Math.Round(GetRandomNumber(1, MyList.Count)) - 1;
-                                    continue;
+                                    //Try next
+                                    throw new Exception("Failed to read data from the secured stream");
                                 }
 
                                 //Now find the peers on the network
@@ -288,15 +404,15 @@ namespace NebliDex_Linux
                                 json_encoded = JsonConvert.SerializeObject(js);
 
                                 data = System.Text.Encoding.ASCII.GetBytes(json_encoded + "\r\n");
-                                nStream.Write(data, 0, data.Length); //Write to Server
+                                secure_nStream.Write(data, 0, data.Length); //Write to Server
 
                                 //Now receive this response
                                 packet_size = 1;
                                 response = "";
                                 while (packet_size > 0)
                                 {
-                                    packet_size = NSReadLine(nStream, databuf, 0, databuf.Length); //Read into buffer
-                                                                                                   //Get the string
+                                    packet_size = NSReadLine(secure_nStream, databuf, 0, databuf.Length); //Read into buffer
+                                                                                                          //Get the string
                                     response = response + System.Text.Encoding.ASCII.GetString(databuf, 0, packet_size);
                                     if (packet_size < databuf.Length)
                                     {
@@ -311,23 +427,23 @@ namespace NebliDex_Linux
                                 js = JObject.Parse(response);
 
                                 //Go through each row of results
+                                int current_node_amount = nodes_amount;
                                 foreach (JToken row in js["result"])
                                 {
                                     //And then the ports
                                     string ip_value = row[0].ToString();
                                     ip_value = ip_value.ToLower().Trim();
-                                    if (ip_value.EndsWith("onion",StringComparison.InvariantCulture) == false)
-                                    { //Make sure not onion address
-                                        foreach (JToken port in row[2])
-                                        {
-                                            string port_value = port.ToString();
-                                            if (port_value.StartsWith("t",StringComparison.InvariantCulture))
-                                            {
-                                                nodes_amount++;
-                                                electrum_list.Add(ip_value);
-                                                electrum_port.Add(Convert.ToInt32(port_value.Substring(1)));
-                                                //Add this information to the list
-                                            }
+                                    if (ip_value.IndexOf("onion",StringComparison.InvariantCulture) > -1) { continue; } //No Tor addresses
+									if (ip_value.IndexOf(":",StringComparison.InvariantCulture) > -1) { continue; } //No IPv6 addresses
+                                    foreach (JToken port in row[2])
+                                    {
+                                        string port_value = port.ToString();
+                                        if (port_value.StartsWith("s"))
+                                        { //Now using SSL
+                                            nodes_amount++;
+                                            electrum_list.Add(ip_value);
+                                            electrum_port.Add(Convert.ToInt32(port_value.Substring(1)));
+                                            //Add this information to the list
                                         }
                                     }
                                 }
@@ -337,9 +453,28 @@ namespace NebliDex_Linux
                                 electrum_list.Add(address.ToString());
                                 electrum_port.Add(target_port);
 
+                                if (current_node_amount == nodes_amount - 1)
+                                {
+                                    if (i < MyList.Count - 1)
+                                    {
+                                        //Should be more, if not, try another server
+                                        //Do not finalize the list until client went through all DNS servers
+                                        secure_nStream.Close();
+                                        nStream.Close();
+                                        client.Close();
+                                        //Try next
+                                        throw new Exception("Server lacked new nodes for connection, only adding server node");
+                                    }
+                                    else
+                                    {
+                                        NebliDexNetLog("Server lacked new nodes, but last server on DNS list");
+                                    }
+                                }
+
                                 //Now add the amount of nodes to the beginning
                                 electrum_list.Insert(startrow, "" + nodes_amount); //The number of rows at the beginning of these nodes
 
+                                secure_nStream.Close();
                                 nStream.Close();
                                 client.Close();
 
@@ -348,13 +483,14 @@ namespace NebliDex_Linux
                             else
                             {
                                 client.Close();
-                                NebliDexNetLog("Connection Timeout: " + MyList[pos]);
+                                NebliDexNetLog("Connection Timeout: " + MyList[pos].domain);
                             }
                         }
                         catch (Exception e)
                         {
                             //Something went wrong with lookup, skip
-                            NebliDexNetLog("Unable to connect to: " + MyList[pos] + ", error: " + e.ToString());
+
+                            NebliDexNetLog("Unable to connect to: " + MyList[pos].domain + ", error: " + e.ToString());
                         }
                         pos++;
                         if (pos > MyList.Count - 1) { pos = 0; }
@@ -362,6 +498,7 @@ namespace NebliDex_Linux
 
                     if (nodes_amount == 0)
                     {
+                        NebliDexNetLog("Failed to find electrum nodes for blockchain type: " + m);
                         return; //Could not find electrum nodes for all coins
                     }
                 }
@@ -374,7 +511,7 @@ namespace NebliDex_Linux
                     {
                         int index = 0;
                         int index2 = 0;
-                        for (int i = 0; i < 2; i++)
+                        for (int i = 0; i < total_electrum_types; i++)
                         {
                             int num = Convert.ToInt32(electrum_list[index]); //Returns amount of nodes
                             file.WriteLine("" + num);
@@ -388,12 +525,29 @@ namespace NebliDex_Linux
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    NebliDexNetLog("Failed to write electrum_peers.dat");
+                    NebliDexNetLog("Failed to write electrum_peers.dat, error: " + e.ToString());
                 }
             }
 
+        }
+
+		public static bool CheckSSLCertificate(
+              object sender,
+              X509Certificate certificate,
+              X509Chain chain,
+              SslPolicyErrors sslPolicyErrors)
+        {
+            if (sslPolicyErrors != SslPolicyErrors.RemoteCertificateNotAvailable)
+            {
+                return true;
+            }
+
+            NebliDexNetLog("SSL Certificate error: " + sslPolicyErrors);
+
+            // Do not allow this client to communicate with unauthenticated servers.
+            return false;
         }
 
         public static void FindCNServers(bool dialog)
@@ -935,14 +1089,14 @@ namespace NebliDex_Linux
             }
         }
 
-        public static void ConnectElectrumServers(int type)
+		public static void ConnectElectrumServers(int type)
         {
             if (File.Exists(App_Path + "/data/electrum_peers.dat") == false)
             {
                 FindElectrumServers(); //Re-download the list
                 return;
             }
-            //This function will make a persistent connection to 2 electrum servers
+            //This function will make a persistent connection to many electrum servers
             //If the file is created already, just load electrum info
             int min;
             int max;
@@ -950,19 +1104,54 @@ namespace NebliDex_Linux
             {
                 //Connect to all the servers
                 min = 0;
-                max = 2;
+                max = total_cointypes - 1;
+                //type 0 doesn't use electrum
             }
             else
             {
-                min = type;
-                max = type + 1;
+                min = type - 1;
+                max = type;
             }
+
+            //File index
+            int f_index = min - 1;
 
             for (int i = min; i < max; i++)
             {
                 //Connect to electrum servers
+                if (i == 5)
+                {
+                    //Ethereum doesn't use electrum servers
+                    continue;
+                }
+                f_index++;
+                if (f_index == 0)
+                {
+                    NebliDexNetLog("Selecting Bitcoin Electrum Server");
+                }
+                else if (f_index == 1)
+                {
+                    NebliDexNetLog("Selecting Litecoin Electrum Server");
+                }
+                else if (f_index == 2)
+                {
+                    NebliDexNetLog("Selecting Groestlcoin Electrum Server");
+                }
+                else if (f_index == 3)
+                {
+                    NebliDexNetLog("Selecting Bitcoin Cash Electrum Server");
+                }
+                else if (f_index == 4)
+                {
+                    NebliDexNetLog("Selecting Monacoin Electrum Server");
+                }
                 string[] electrum_info = new string[2];
-                bool ok = SelectRandomElectrum(i, electrum_info);
+                bool ok = SelectRandomElectrum(f_index, electrum_info);
+                if (ok == false)
+                {
+                    NebliDexNetLog("Unable to select electrum server for this blockchain");
+                    continue;
+                }
                 try
                 {
                     IPAddress address = IPAddress.Parse(electrum_info[0]);
@@ -974,8 +1163,21 @@ namespace NebliDex_Linux
                     {
                         NebliDexNetLog("Connected To Electrum: " + electrum_info[0]);
                         NetworkStream nStream = client.GetStream();
-                        nStream.ReadTimeout = 5000;
-                        nStream.WriteTimeout = 5000;
+                        //Get a secure connection
+                        SslStream secure_nStream = new SslStream(nStream, true, new RemoteCertificateValidationCallback(CheckSSLCertificate), null);
+                        secure_nStream.ReadTimeout = 5000;
+                        secure_nStream.WriteTimeout = 5000;
+                        try
+                        {
+                            secure_nStream.AuthenticateAsClient(electrum_info[0]);
+                        }
+                        catch (Exception e)
+                        {
+                            secure_nStream.Close();
+                            nStream.Close();
+                            client.Close();
+                            throw new Exception("Invalid certificate from server, error: " + e.ToString());
+                        }
 
                         //Transmit server version to make sure this is accepted or not
                         JObject js = new JObject();
@@ -986,15 +1188,15 @@ namespace NebliDex_Linux
                         string json_encoded = JsonConvert.SerializeObject(js);
 
                         Byte[] data = System.Text.Encoding.ASCII.GetBytes(json_encoded + "\r\n");
-                        nStream.Write(data, 0, data.Length); //Write to Server
-                                                             //And then receive the response
+                        secure_nStream.Write(data, 0, data.Length); //Write to Server
+                                                                    //And then receive the response
                         Byte[] databuf = new Byte[1024]; //Our buffer
                         int packet_size = 1;
                         string response = "";
                         while (packet_size > 0)
                         {
-                            packet_size = NSReadLine(nStream, databuf, 0, databuf.Length); //Read into buffer
-                                                                                           //Get the string
+                            packet_size = NSReadLine(secure_nStream, databuf, 0, databuf.Length); //Read into buffer
+                                                                                                  //Get the string
                             response = response + System.Text.Encoding.ASCII.GetString(databuf, 0, packet_size);
                             if (packet_size < databuf.Length)
                             {
@@ -1009,29 +1211,32 @@ namespace NebliDex_Linux
                         {
                             //This server version not accepted
                             //Try another
+                            secure_nStream.Close();
                             nStream.Close();
                             client.Close();
                             throw new System.InvalidOperationException("Electrum server version too low");
                         }
 
-						nStream.ReadTimeout = System.Threading.Timeout.Infinite; //Reset the read timeout to its default
-                        nStream.WriteTimeout = 15000;
+                        secure_nStream.ReadTimeout = System.Threading.Timeout.Infinite; //Reset the read timeout to its default
+                        secure_nStream.WriteTimeout = 15000;
                         DexConnection dex = new DexConnection();
                         dex.ip_address[0] = electrum_info[0];
                         dex.ip_address[1] = electrum_info[1];
                         dex.outgoing = true;
                         dex.open = true; //The connection is open
-                        dex.contype = (i + 1); //Dex connection 0 reserved for NEBL, not used anymore
+                        dex.contype = 1; //Type 1 is now used exclusively for all electrum connections
+                        dex.blockchain_type = i + 1; //Standardize to blockchain types
                         dex.electrum_id = 1; //We already used the first one
                         dex.client = client;
                         dex.stream = nStream;
+                        dex.secure_stream = secure_nStream;
                         lock (DexConnectionList)
                         {
                             DexConnectionList.Add(dex);
                         }
 
                         //Setup the callback that runs when data is received into connection
-                        nStream.BeginRead(dex.buf, 0, 1, DexConnCallback, dex);
+                        secure_nStream.BeginRead(dex.buf, 0, 1, DexConnCallback, dex);
 
                     }
                     else
@@ -1059,7 +1264,7 @@ namespace NebliDex_Linux
                         }
                     }
 
-                    bool success = RemoveElectrumServer(i, electrum_info[0]);
+                    bool success = RemoveElectrumServer(f_index, electrum_info[0]);
                     if (success == false)
                     {
                         File.Delete(App_Path + "/data/electrum_peers.dat"); //Remove the electrum_peers
@@ -1068,6 +1273,7 @@ namespace NebliDex_Linux
                         break; //Will try again next loop
                     }
                     i--; //Go back one and try again
+                    f_index--;
                 }
             }
         }
@@ -1268,17 +1474,26 @@ namespace NebliDex_Linux
 
         }
 
-        public static void DexConnectionCallback(IAsyncResult asyncResult)
+		public static void DexConnectionCallback(IAsyncResult asyncResult)
         {
             //This function is called when there is data returned from async callback
             DexConnection dexcon = (DexConnection)asyncResult.AsyncState; //The object passed into the callback
             try
             {
                 if (dexcon.open == false) { return; } //Stream is already closed
-                int bytesread = dexcon.stream.EndRead(asyncResult); //Get the bytes to read
+                int bytesread;
+                if (dexcon.secure_stream == null)
+                {
+                    bytesread = dexcon.stream.EndRead(asyncResult); //Get the bytes to read
+                }
+                else
+                {
+                    bytesread = dexcon.secure_stream.EndRead(asyncResult); //Secured stream
+                }
                 if (bytesread == 0)
                 {
                     //Nothing to read as connection has been disconnected
+                    NebliDexNetLog("The remote server closed the connection: " + dexcon.ip_address[0] + " (Blockchain " + dexcon.blockchain_type + ")");
                     dexcon.open = false;
                     //May consider reopening the connection or doing it from another function           
                     return;
@@ -1286,16 +1501,16 @@ namespace NebliDex_Linux
                 else
                 {
                     //Something to read, so keep reading it
-                    if (dexcon.contype == 1 || dexcon.contype == 2)
-                    {
-                        //Electrum connection, just read the entire line
+                    if (dexcon.contype == 1)
+                    { //Electrum
+                      //Electrum connection, just read the entire line
                         int packet_size = bytesread;
                         string msg = System.Text.Encoding.ASCII.GetString(dexcon.buf, 0, packet_size); ;
                         byte[] read_buf = new byte[256];
                         while (packet_size > 0)
                         {
-                            packet_size = NSReadLine(dexcon.stream, read_buf, 0, read_buf.Length); //Read into buffer
-                                                                                                   //Get the string
+                            packet_size = NSReadLine(dexcon.secure_stream, read_buf, 0, read_buf.Length); //Read into buffer
+                                                                                                          //Get the string
                             msg = msg + System.Text.Encoding.ASCII.GetString(read_buf, 0, packet_size);
                             if (packet_size < read_buf.Length)
                             {
@@ -1337,7 +1552,14 @@ namespace NebliDex_Linux
                         Task.Run(() => ProcessDexResponse(dexcon, msg));
                     }
                     dexcon.lasttouchtime = UTCTime(); //There is activity on this connection
-                    dexcon.stream.BeginRead(dexcon.buf, 0, 1, DexConnCallback, dexcon);
+                    if (dexcon.secure_stream == null)
+                    {
+                        dexcon.stream.BeginRead(dexcon.buf, 0, 1, DexConnCallback, dexcon);
+                    }
+                    else
+                    {
+                        dexcon.secure_stream.BeginRead(dexcon.buf, 0, 1, DexConnCallback, dexcon);
+                    }
                 }
             }
             catch (Exception e)
@@ -1356,7 +1578,7 @@ namespace NebliDex_Linux
         public static void ProcessDexResponse(DexConnection con, string msg)
         {
             //This will take the message and the connection and process it
-            if (con.contype < 3)
+            if (con.contype == 1)
             {
                 //Electrum
                 try
@@ -1392,10 +1614,12 @@ namespace NebliDex_Linux
                                     else if (DexConnectionReqList[i].requesttype == 2)
                                     {
                                         //Balance check
+										//Get the wallet type
+                                        int wallet_type = GetWalletType(con.blockchain_type);   
                                         if (js["result"] == null)
                                         {
                                             //This is 0 balance automatically
-                                            UpdateWalletBalance(con.contype, 0, 0);
+											UpdateWalletBalance(wallet_type, 0, 0);
                                         }
                                         else
                                         {
@@ -1406,7 +1630,7 @@ namespace NebliDex_Linux
                                             string ubal = js["result"]["unconfirmed"].ToString();
                                             Decimal usatoshi = Decimal.Parse(ubal);
                                             usatoshi = Decimal.Divide(usatoshi, 100000000); //Convert to Normal Numbers
-                                            UpdateWalletBalance(con.contype, satoshi, usatoshi);
+											UpdateWalletBalance(wallet_type, satoshi, usatoshi);
                                         }
                                     }
                                     else if (DexConnectionReqList[i].requesttype == 3)
@@ -1441,47 +1665,25 @@ namespace NebliDex_Linux
                                     {
                                         if (js["error"] != null)
                                         {
-                                            //Couldn't find an estimated fee, use default
-                                            if (con.contype == 2)
-                                            {
-                                                //Litecoin minimum for 1 block inclusion
-                                                blockchain_fee[con.contype] = 0.0020m;
-                                            }
-                                            else if (con.contype == 1)
-                                            {
-                                                //Bitcoin minimum
-                                                blockchain_fee[con.contype] = 0.0012m;
-                                            }
+											//Couldn't find an estimated fee, use default, don't change it
                                         }
                                         else if (js["result"] != null)
                                         {
                                             //Use this fee as our default
                                             JValue fee = (JValue)js["result"]; //Must convert to JValue in order for it to not autoconvert
-                                            blockchain_fee[con.contype] = Decimal.Parse(fee.ToString(CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture);
-                                            if (blockchain_fee[con.contype] < 0)
+											decimal electrum_fee = Decimal.Parse(fee.ToString(CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture);
+                                            if (electrum_fee <= 0)
                                             {
-                                                //Electrum not able to compute fees, so use default
-                                                if (con.contype == 2)
-                                                {
-                                                    //Litecoin minimum for 1 block inclusion
-                                                    blockchain_fee[con.contype] = 0.0020m;
-                                                }
-                                                else if (con.contype == 1)
-                                                {
-                                                    //Bitcoin minimum for 1 block inclusion
-                                                    blockchain_fee[con.contype] = 0.0012m;
-                                                }
+												//Don't change the default
                                             }
                                             else
                                             {
-                                                //For mainnet Bitcoin, the fees are underestimated by estimatefee, so double the fee
-                                                if (testnet_mode == false)
+												//Set the fee to this amount
+                                                blockchain_fee[con.blockchain_type] = electrum_fee;
+                                                //Use Bitcoin fee to estimate Bitcoin Cash fee
+                                                if (con.blockchain_type == 1)
                                                 {
-                                                    if (con.contype == 1)
-                                                    {
-                                                        //Bitcoin
-                                                        blockchain_fee[con.contype] = blockchain_fee[con.contype] * 2;
-                                                    }
+                                                    blockchain_fee[4] = Math.Round(electrum_fee / 80m, 8);
                                                 }
                                             }
                                         }
@@ -2667,7 +2869,7 @@ namespace NebliDex_Linux
                                 }
 
                                 int type = Convert.ToInt32(type_string);
-                                if (type == 0)
+								if (type == 0)
                                 {
                                     //Can cancel taker transaction at any point until it pulls the balance from the maker contract
                                     SetMyTransactionData("type", 6, reqtime, order_nonce); //Set pending cancel and wait until taker contract expires to make sure
@@ -2677,6 +2879,11 @@ namespace NebliDex_Linux
                                     int cointype = Convert.ToInt32(GetMyTransactionData("cointype", reqtime, order_nonce));
                                     //Make the wallet availabe to trade again for taker                                 
                                     UpdateWalletStatus(cointype, 0);
+                                    //Also cancel the fee transaction as well (validator will receive fee if trade information exchanged)
+                                    CancelFeeWithdrawalMonitor(reqtime, order_nonce);
+                                    //Make the fee wallet availabe to trade again for maker                             
+                                    UpdateWalletStatus(3, 0);
+
                                     con.open = false; //Close the validator
 
                                     //The other half of this will get canceled the normal way (through cancelmarketorder)
@@ -2703,19 +2910,20 @@ namespace NebliDex_Linux
                                 }
 
                                 int type = Convert.ToInt32(type_string);
-                                if (type == 5)
-                                {
+								if(type == 5){
                                     //Waiting for taker, then we can cancel otherwise, we can't
-									string secret_hash = GetMyTransactionData("atomic_secret_hash", reqtime, order_nonce);
-                                    SetMyTransactionData("type", 3, reqtime, order_nonce); //Cancel trade
-                                    //Update my trade history to cancelled  
-                                    UpdateMyRecentTrade(secret_hash, 2);
+                                    string secret_hash = GetMyTransactionData("atomic_secret_hash",reqtime,order_nonce); //Get the secret_hash before canceling                                 
+                                    int cointype = Convert.ToInt32(GetMyTransactionData("cointype",reqtime,order_nonce));
+                                    SetMyTransactionData("type",3,reqtime,order_nonce); //Cancel trade
+                                    UpdateMyRecentTrade(secret_hash,2);
+                                    //Update my trade history to cancelled                                                                      
                                     //Also cancel the fee transaction as well (validator will receive fee if trade information exchanged)
-                                    CancelFeeWithdrawlMonitor(reqtime, order_nonce);
+                                    CancelFeeWithdrawalMonitor(reqtime,order_nonce);
                                     //Make the fee wallet availabe to trade again for maker                             
-                                    UpdateWalletStatus(3, 0);
+                                    UpdateWalletStatus(3,0);
+                                    UpdateWalletStatus(cointype,0);
                                     con.open = false; //Close the validator 
-                                }
+                                }       
                             }
                         }
                     }
@@ -2979,7 +3187,7 @@ namespace NebliDex_Linux
             }
         }
 
-        public static int NSReadLine(NetworkStream s, Byte[] b, int off, int amount)
+        public static int NSReadLine(SslStream s, Byte[] b, int off, int amount)
         {
             //This function will read byte by byte until it gets to a new line (for electrum)
             byte mybyte = 0;
@@ -3021,7 +3229,7 @@ namespace NebliDex_Linux
             }
         }
 
-        public static bool RemoveElectrumServer(int type, string ip)
+		public static bool RemoveElectrumServer(int type, string ip)
         {
             if (File.Exists(App_Path + "/data/electrum_peers.dat") == false)
             {
@@ -3045,10 +3253,10 @@ namespace NebliDex_Linux
                                 file_out.WriteLine("" + (num - 1));
                                 if (num - 1 < 1)
                                 {
-                                    //No nodes left
+                                    //No nodes left for blockchain type
                                     file_out.Close();
                                     File.Delete(App_Path + "/data/electrum_peers_new.dat");
-                                    return false; //Must re-download all nodes
+                                    return false; //Must re-download all nodes for all blockchain types
                                 }
                             }
                             else
@@ -3480,7 +3688,7 @@ namespace NebliDex_Linux
 
                         try
                         {
-                            if (mydex.contype == 1 || mydex.contype == 2)
+                            if (mydex.contype == 1)
                             {
                                 if (ctime - mydex.lasttouchtime > 50)
                                 { //Send keep alive every 50 seconds
@@ -3489,11 +3697,12 @@ namespace NebliDex_Linux
                                 }
 
                                 //Now get the balance for each wallet
-                                SendElectrumAction(mydex, 2, null); //Get balance of BTC, LTC
-                                if (mydex.contype != 0)
+                                SendElectrumAction(mydex, 2, null); //Get balance of coins
+								if (mydex.blockchain_type != 4)
                                 {
-                                    //Get the estimated fee (not neblio)
-                                    SendElectrumAction(mydex, 8, null);
+                                    // Bitcoin Cash estimatefee doesn't work
+                                    // Current implementation of ElectrumX doesn't allow for estimatefee without arguments
+                                    SendElectrumAction(mydex, 8, null); //Get estimated fee as well
                                 }
                             }
                             else if (mydex.contype > 2)
@@ -3603,6 +3812,10 @@ namespace NebliDex_Linux
                 //Get Balances for Neblio and Tokens
                 GetNTP1Balances();
 
+				//Get Ethereum Blockchain Fees and Balance
+                GetEthereumWalletBalances();
+                GetEthereumBlockchainFee();
+            
                 if (critical_node == true)
                 {
                     //Query the CNs for connectivity
@@ -3635,61 +3848,75 @@ namespace NebliDex_Linux
                 }
 
                 //Reconnect to broken Dex connections
-                for (int i = 1; i < 4; i++)
+				//First reconnect broken electrum nodes 
+                bool dex_exist = false;
+                for (int i = 1; i < total_cointypes; i++)
                 {
-                    bool dex_exist = false;
+                    dex_exist = false;
+                    if (i == 6) { continue; } //Ethereum doesn't have electrum
                     lock (DexConnectionList)
                     {
                         for (int i2 = 0; i2 < DexConnectionList.Count; i2++)
                         {
-                            if (DexConnectionList[i2].contype == i && DexConnectionList[i2].outgoing == true && DexConnectionList[i2].open == true)
+                            if (DexConnectionList[i2].contype == 1 && DexConnectionList[i2].outgoing == true && DexConnectionList[i2].open == true && DexConnectionList[i2].blockchain_type == i)
                             {
-                                dex_exist = true; break; //There is a connection for this electrum server or CN server
+                                dex_exist = true; break; //There is a connection for this electrum server
                             }
                         }
                     }
                     if (dex_exist == false)
                     {
                         //Connection was lost
-                        if (i < 3)
+                        //This specific blockchain type is not there
+                        NebliDexNetLog("Please reconnect electrum blocktype: " + i);
+                        ConnectElectrumServers(i);
+                    }
+                }
+
+				//Now go through CN connections and reconnect if necessary
+                dex_exist = false;
+                lock (DexConnectionList)
+                {
+                    for (int i2 = 0; i2 < DexConnectionList.Count; i2++)
+                    {
+                        if (DexConnectionList[i2].contype == 3 && DexConnectionList[i2].outgoing == true && DexConnectionList[i2].open == true)
                         {
-                            NebliDexNetLog("Please reconnect electrum");
-                            ConnectElectrumServers(i - 1);
+                            dex_exist = true; break; //There is a connection for this electrum server
                         }
-                        else if (i == 3)
+                    }
+                }
+				if (dex_exist == false)
+                {
+                    if (critical_node == false)
+                    {
+                        ConnectCNServer(false); //Always maintain a connection to another CN
+                    }
+                    else
+                    {
+                        if (CN_Nodes_By_IP.Count > 1)
                         {
-                            if (critical_node == false)
+                            //There is more than one node on network
+                            ConnectCNServer(false); //Always maintain a connection to another CN
+                        }
+                        else if (CN_Nodes_By_IP.Count == 0)
+                        {
+							//Should not happen, disconnect the CN
+                            ToggleCriticalNodeServer(false); //Turn server back off
+                            if (run_headless == false)
                             {
-                                ConnectCNServer(false); //Always maintain a connection to another CN
+                                Application.Invoke(delegate
+                                {
+                                    if (main_window_loaded == true)
+                                    {
+                                        MessageBox(main_window, "Notice", "Critical node out of sync. Must manually reactivate node.", "OK");
+                                        main_window.ToggleCNInfo(false);
+                                    }
+                                });
                             }
                             else
                             {
-                                if (CN_Nodes_By_IP.Count > 1)
-                                {
-                                    //There is more than one node on network
-                                    ConnectCNServer(false); //Always maintain a connection to another CN
-                                }
-                                else if (CN_Nodes_By_IP.Count == 0)
-                                {
-                                    //Should not happen, disconnect the CN
-                                    ToggleCriticalNodeServer(false); //Turn server back off
-									if (run_headless == false)
-                                    {
-                                        Application.Invoke(delegate
-                                        {
-                                            if (main_window_loaded == true)
-                                            {
-                                                MessageBox(main_window, "Notice", "Critical node out of sync. Must manually reactivate node.", "OK");
-                                                main_window.ToggleCNInfo(false);
-                                            }
-                                        });
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine("Critical node out of sync. Must manually reactivate node. Closing Program");
-                                        Headless_Application_Close();
-                                    }
-                                }
+                                Console.WriteLine("Critical node out of sync. Must manually reactivate node. Closing Program");
+                                Headless_Application_Close();
                             }
                         }
                     }
@@ -3815,18 +4042,25 @@ namespace NebliDex_Linux
 
                             if (good == false) { remove_order = true; }
 
-                            //Make sure that total is greater than block rates for both markets
+							//Make sure that total is greater than block rates for both markets
                             decimal block_fee1 = 0;
                             decimal block_fee2 = 0;
-                            if (MarketList[MyOpenOrderList[i].market].trade_wallet > 2 || MarketList[MyOpenOrderList[i].market].trade_wallet == 0)
+                            int trade_wallet_blockchaintype = GetWalletBlockchainType(MarketList[exchange_market].trade_wallet);
+                            int base_wallet_blockchaintype = GetWalletBlockchainType(MarketList[exchange_market].base_wallet);
+                            block_fee1 = blockchain_fee[trade_wallet_blockchaintype];
+                            block_fee2 = blockchain_fee[base_wallet_blockchaintype];
+
+                            //Now calculate the totals for ethereum blockchain
+                            if (trade_wallet_blockchaintype == 6)
                             {
-                                block_fee1 = blockchain_fee[0]; //Neblio fee
+                                block_fee1 = GetEtherContractTradeFee();
                             }
-                            if (MarketList[MyOpenOrderList[i].market].base_wallet >= 0 && MarketList[MyOpenOrderList[i].market].base_wallet < 3)
+                            if (base_wallet_blockchaintype == 6)
                             {
-                                block_fee2 = blockchain_fee[MarketList[MyOpenOrderList[i].market].base_wallet]; //Base fee
+                                block_fee2 = GetEtherContractTradeFee();
                             }
-                            if (total < block_fee1 || total < block_fee2 || MyOpenOrderList[i].amount < block_fee1 || MyOpenOrderList[i].amount < block_fee2)
+
+                            if (total < block_fee2 || MyOpenOrderList[i].amount < block_fee1)
                             {
                                 //Smaller than blockchain fees
                                 remove_order = true;
@@ -3940,10 +4174,10 @@ namespace NebliDex_Linux
 
                     for (int i = 0; i < WalletList.Count; i++)
                     {
-                        if (WalletList[i].type == con.contype)
+                        if (WalletList[i].blockchaintype == con.blockchain_type)
                         {
                             string wal_add = WalletList[i].address;
-                            scripthash = GetElectrumScriptHash(wal_add, con.contype);
+							scripthash = GetElectrumScriptHash(wal_add, WalletList[i].type);
                             break;
                         }
                     }
@@ -4041,7 +4275,7 @@ namespace NebliDex_Linux
                     try
                     {
                         Byte[] data = System.Text.Encoding.ASCII.GetBytes(json_encoded + "\r\n");
-                        con.stream.Write(data, 0, data.Length);
+						con.secure_stream.Write(data, 0, data.Length);
                     }
                     catch (Exception e)
                     {
@@ -4086,6 +4320,11 @@ namespace NebliDex_Linux
 
                         request.Method = "POST";
                         request.ContentType = "application/json";
+						if (postdata.IndexOf("&",StringComparison.InvariantCulture) >= 0)
+                        {
+                            //Old school content type
+                            request.ContentType = "application/x-www-form-urlencoded";
+                        }
                         request.ContentLength = data.Length;
 
                         using (var stream = request.GetRequestStream())
@@ -4722,27 +4961,43 @@ namespace NebliDex_Linux
             }
         }
 
-        public static void CheckElectrumServerSync()
+		public static void CheckElectrumServerSync()
         {
 
             //This function will make sure that the connected electrum server is synchronized with its network
             //It is ran every 15 minutes and if not synced the connection will be dropped
-            for (int etype = 1; etype < 3; etype++)
+            for (int etype = 1; etype < total_cointypes; etype++)
             {
                 if (etype == 1)
                 {
                     NebliDexNetLog("Checking Bitcoin blockchain sync");
                 }
-                else
+                else if (etype == 2)
                 {
                     NebliDexNetLog("Checking Litecoin blockchain sync");
+                }
+                else if (etype == 3)
+                {
+                    NebliDexNetLog("Checking Groestlcoin blockchain sync");
+                }
+                else if (etype == 4)
+                {
+                    NebliDexNetLog("Checking Bitcoin Cash blockchain sync");
+                }
+                else if (etype == 5)
+                {
+                    NebliDexNetLog("Checking Monacoin blockchain sync");
+                }
+                else if (etype == 6)
+                {
+                    continue; //Ethereum doesn't use DexConnection
                 }
                 DexConnection dex = null;
                 lock (DexConnectionList)
                 {
                     for (int i2 = 0; i2 < DexConnectionList.Count; i2++)
                     {
-                        if (DexConnectionList[i2].contype == etype && DexConnectionList[i2].open == true)
+                        if (DexConnectionList[i2].contype == 1 && DexConnectionList[i2].open == true && DexConnectionList[i2].blockchain_type == etype)
                         {
                             dex = DexConnectionList[i2];
                             break;
@@ -4774,9 +5029,21 @@ namespace NebliDex_Linux
                     {
                         NebliDexNetLog("Our Bitcoin blockheight: " + blockheight);
                     }
-                    else
+                    else if (etype == 2)
                     {
                         NebliDexNetLog("Our Litecoin blockheight: " + blockheight);
+                    }
+                    else if (etype == 3)
+                    {
+                        NebliDexNetLog("Our Groestlcoin blockheight: " + blockheight);
+                    }
+                    else if (etype == 4)
+                    {
+                        NebliDexNetLog("Our Bitcoin Cash blockheight: " + blockheight);
+                    }
+                    else if (etype == 5)
+                    {
+                        NebliDexNetLog("Our Monacoin blockheight: " + blockheight);
                     }
 
                     //Now we will query 4 electrum servers of same type for their blockheights
@@ -4802,8 +5069,20 @@ namespace NebliDex_Linux
                             {
                                 NebliDexNetLog("Connected To Electrum peer for sync: " + electrum_info[0]);
                                 NetworkStream nStream = client.GetStream();
-                                nStream.ReadTimeout = 5000;
-                                nStream.WriteTimeout = 5000;
+                                SslStream secure_nStream = new SslStream(nStream, true, new RemoteCertificateValidationCallback(CheckSSLCertificate), null);
+                                secure_nStream.ReadTimeout = 5000;
+                                secure_nStream.WriteTimeout = 5000;
+                                try
+                                {
+                                    secure_nStream.AuthenticateAsClient(electrum_info[0]);
+                                }
+                                catch (Exception e)
+                                {
+                                    secure_nStream.Close();
+                                    nStream.Close();
+                                    client.Close();
+                                    throw new Exception("Invalid certificate from server, error: " + e.ToString());
+                                }
 
                                 //Transmit server version to make sure this is accepted or not
                                 JObject js = new JObject();
@@ -4814,16 +5093,16 @@ namespace NebliDex_Linux
                                 string json_encoded = JsonConvert.SerializeObject(js);
 
                                 Byte[] data = System.Text.Encoding.ASCII.GetBytes(json_encoded + "\r\n");
-                                nStream.Write(data, 0, data.Length); //Write to Server
-                                                                     //And then receive the response
+                                secure_nStream.Write(data, 0, data.Length); //Write to Server
+                                                                            //And then receive the response
                                 Byte[] databuf = new Byte[1024]; //Our buffer
                                 int packet_size = 1;
                                 string response = "";
 
                                 while (packet_size > 0)
                                 {
-                                    packet_size = NSReadLine(nStream, databuf, 0, databuf.Length); //Read into buffer
-                                                                                                   //Get the string
+                                    packet_size = NSReadLine(secure_nStream, databuf, 0, databuf.Length); //Read into buffer
+                                                                                                          //Get the string
                                     response = response + System.Text.Encoding.ASCII.GetString(databuf, 0, packet_size);
                                     if (packet_size < databuf.Length)
                                     {
@@ -4839,6 +5118,7 @@ namespace NebliDex_Linux
                                 {
                                     //This server version not accepted
                                     //Try another
+                                    secure_nStream.Close();
                                     nStream.Close();
                                     client.Close();
                                     throw new System.InvalidOperationException("Electrum server version too low");
@@ -4853,14 +5133,14 @@ namespace NebliDex_Linux
                                 json_encoded = JsonConvert.SerializeObject(js);
 
                                 data = System.Text.Encoding.ASCII.GetBytes(json_encoded + "\r\n");
-                                nStream.Write(data, 0, data.Length); //Write to Server
-                                                                     //And then receive the response
+                                secure_nStream.Write(data, 0, data.Length); //Write to Server
+                                                                            //And then receive the response
                                 packet_size = 1;
                                 response = "";
                                 while (packet_size > 0)
                                 {
-                                    packet_size = NSReadLine(nStream, databuf, 0, data.Length); //Read into buffer
-                                                                                                //Get the string
+                                    packet_size = NSReadLine(secure_nStream, databuf, 0, data.Length); //Read into buffer
+                                                                                                       //Get the string
                                     response = response + System.Text.Encoding.ASCII.GetString(databuf, 0, packet_size);
                                     if (packet_size < data.Length)
                                     {
@@ -4874,6 +5154,7 @@ namespace NebliDex_Linux
                                 {
                                     //No blockheight available
                                     //Try another
+                                    secure_nStream.Close();
                                     nStream.Close();
                                     client.Close();
                                     throw new System.InvalidOperationException("Unable to acquire current block height: " + response);
@@ -4882,6 +5163,7 @@ namespace NebliDex_Linux
                                 int e_blockheight = Convert.ToInt32(js["result"]["height"].ToString()); //What we want
                                 NebliDexNetLog("Peer blockheight: " + e_blockheight);
 
+                                secure_nStream.Close();
                                 nStream.Close();
                                 client.Close();
 
@@ -4909,7 +5191,12 @@ namespace NebliDex_Linux
                     if (only_server == true)
                     {
                         //Find new electrum servers as we are the only server on the list left
-                        FindElectrumServers();
+                        NebliDexNetLog("Failed to find more than one server for blockchain " + etype);
+                        if (testnet_mode == false)
+                        {
+                            File.Delete(App_Path + "/data/electrum_peers.dat"); //Remove this to force a relook on mainnet
+                            FindElectrumServers();
+                        }
                     }
 
 
@@ -4955,7 +5242,7 @@ namespace NebliDex_Linux
         }
 
         //Atomic Transactions
-        public static bool TakerReceiveValidatorInfo(DexConnection con, JObject js)
+		public static bool TakerReceiveValidatorInfo(DexConnection con, JObject js)
         {
             //This function will start the validation process with the validation node
             //In this case, the taker will receive the information and create the initiator smart contract
@@ -5040,11 +5327,11 @@ namespace NebliDex_Linux
                         return false;
                     }
 
-                    string destination_add = result["trade.recipient_add"].ToString(); //Get the Maker's address
+                    string destination_add = result["trade.recipient_add"].ToString(); //Get the Maker's receive address
 
                     //There is a good result to respond to
                     string validator_sig = result["cn.validator_sig"].ToString();
-					string sessionkey_encrypt = result["cn.sessionkey"].ToString(); //This will be encrypted with RSA pubkey
+                    string sessionkey_encrypt = result["cn.sessionkey"].ToString(); //This will be encrypted with RSA pubkey
                     string sessionkey_sig = result["cn.sessionkey_sig"].ToString();
                     string sessionkey = DecryptRSAText(sessionkey_encrypt, my_rsa_privkey); //Get the one-time AES key by decrypting with our RSA privatekey
 
@@ -5059,7 +5346,7 @@ namespace NebliDex_Linux
                         return false;
                     }
 
-                    //Verify Sessionkey is related to validation node
+                    //Verify encrypted Sessionkey is related to validation node
                     check = pub.VerifyMessage(sessionkey_encrypt, sessionkey_sig);
                     if (check == false)
                     {
@@ -5156,19 +5443,35 @@ namespace NebliDex_Linux
                     //We will refund to this wallet if contract times out
                     string my_send_add = GetWalletAddress(redeemscript_wallet);
 
+                    //Determine if this is an Ethereum based atomic swap
+                    bool sending_eth = false;
+                    if (GetWalletBlockchainType(redeemscript_wallet) == 6)
+                    {
+                        sending_eth = true;
+                    }
+
                     //Now create the Smart Contract
                     //Initiator contract last for 3 hours after creation
                     string contract_secret = CreateAtomicSwapSecret(); //Fixed length secret that must be kept hidden, used to redeem maker contract
                     string contract_secret_hash = ConvertByteArrayToHexString(NBitcoin.Crypto.Hashes.SHA256(ConvertHexStringToByteArray(contract_secret))); //SHAHash the secret to protect it
-					//Now create the redeem script used by the secret
-                    //We must add the block inclusion time of the maker's contract in case maker wants to refund
+                                                                                                                                                            //Now create the redeem script used by the secret
+                                                                                                                                                            //We must add the block inclusion time of the maker's contract in case maker wants to refund
                     long maker_inclusion_time = GetBlockInclusionTime(makerwallet, 0); //This will return the extra time to add because of maker inclusion time
                     long contract_unlock_time = UTCTime() + max_transaction_wait + maker_inclusion_time; //3 hours + inclusion time
                     long refund_contract_time = GetBlockInclusionTime(redeemscript_wallet, contract_unlock_time); //Some blockchains prevent nLockTimes greater than median of last 11 blocks
-                    Script atomic_contract_script = CreateAtomicSwapScript(destination_add, my_send_add, contract_secret_hash, contract_unlock_time);
-                    string atomic_contract_string = atomic_contract_script.ToString();
-                    string contract_address = CreateAtomicSwapAddress(redeemscript_wallet, atomic_contract_script); //This is the Scripthash address
 
+                    string contract_address;
+                    string atomic_contract_string = "Not Present";
+                    if (sending_eth == false)
+                    {
+                        Script atomic_contract_script = CreateAtomicSwapScript(destination_add, my_send_add, contract_secret_hash, contract_unlock_time);
+                        atomic_contract_string = atomic_contract_script.ToString();
+                        contract_address = CreateAtomicSwapAddress(redeemscript_wallet, atomic_contract_script); //This is the Scripthash address
+                    }
+                    else
+                    {
+                        contract_address = ETH_ATOMICSWAP_ADDRESS;
+                    }
                     //We need to send the secret hash and the unlock time to the maker to proceed, along with payment and fee transaction to critical node
 
                     //Participant contract lasts for 1.5 hours after creation
@@ -5177,7 +5480,8 @@ namespace NebliDex_Linux
                     //Then symmetric encryption (AES) for actual transaction
 
                     bool nebliobased = false;
-                    if (redeemscript_wallet == 0 || redeemscript_wallet > 2)
+                    bool ntp1_wallet = IsWalletNTP1(redeemscript_wallet);
+                    if (redeemscript_wallet == 0 || ntp1_wallet == true)
                     {
                         //The redeem script add is of nebliotype
                         nebliobased = true;
@@ -5187,11 +5491,21 @@ namespace NebliDex_Linux
                     //The validator node won't propagate the transaction unless the fee is paid
                     Transaction send_tx = null;
                     Transaction sendfee_tx = null;
+                    Nethereum.Signer.TransactionChainId eth_tx = null;
+                    string my_txhash = "";
                     if (nebliobased == false)
                     {
-                        //Litecoin and Bitcoin will use normal P2PKH via electrum
+                        //Bitcoin based coins will use normal P2PKH via electrum
                         //We will send extra coin to cover the eventual transfer out of the scripthash address
-                        send_tx = CreateSignedP2PKHTx(redeemscript_wallet, sendamount, contract_address, false, true, "", 0, 0, true);
+                        if (sending_eth == false)
+                        {
+                            send_tx = CreateSignedP2PKHTx(redeemscript_wallet, sendamount, contract_address, false, true, "", 0, 0, true);
+                        }
+                        else
+                        {
+                            string open_data = GenerateEthereumAtomicSwapOpenData(contract_secret_hash, destination_add, contract_unlock_time);
+                            eth_tx = CreateSignedEthereumTransaction(contract_address, sendamount, true, 1, open_data);
+                        }
                         if (vn_fee > 0)
                         {
                             //Create an NTP1 transaction for the fee as well to validator
@@ -5212,15 +5526,16 @@ namespace NebliDex_Linux
                     {
                         //Create a singular transaction that pays the validator as well as transfer neblio/tokens
                         Decimal extra_neb = 0; //Giving the other person extra neb so they can trade more
-                        if (redeemscript_wallet == 3 && (makerwallet == 1 || makerwallet == 2) && myord.type == 1)
+                        int maker_blockchain_type = GetWalletBlockchainType(makerwallet);
+                        if (redeemscript_wallet == 3 && maker_blockchain_type != 0 && myord.type == 1)
                         {
-                            //We are selling NDEX for BTC or LTC, give them some NEBL too so they can trade with it
+                            //We are selling NDEX for coin other than NEBL, give them some NEBL too so they can trade with it
                             extra_neb = blockchain_fee[0] * 12;
                         }
                         send_tx = CreateSignedP2PKHTx(redeemscript_wallet, sendamount, contract_address, false, true, validator_add, vn_fee, extra_neb, true);
                     }
 
-                    if (send_tx == null)
+                    if (send_tx == null && eth_tx == null)
                     {
                         //Something went wrong
                         NebliDexNetLog("Unable to create normal transaction");
@@ -5237,7 +5552,16 @@ namespace NebliDex_Linux
                     vob["cn.response"] = 0;
                     vob["cn.order_nonce"] = order_nonce;
                     vob["cn.initiating_cn_ip"] = js["cn.initiating_cn_ip"]; //Forward the initating IP to Taker
-                    vob["trade.validator_mytx"] = AESEncrypt(send_tx.ToHex(), sessionkey); //Transaction encrypted so only validator can post it                    
+                    if (sending_eth == false)
+                    {
+                        vob["trade.validator_mytx"] = AESEncrypt(send_tx.ToHex(), sessionkey); //Transaction encrypted so only validator can post it                    
+                        my_txhash = send_tx.GetHash().ToString();
+                    }
+                    else
+                    {
+                        vob["trade.validator_mytx"] = AESEncrypt(eth_tx.Signed_Hex, sessionkey);
+                        my_txhash = eth_tx.HashID;
+                    }
                     if (sendfee_tx != null)
                     {
                         vob["trade.validator_feetx"] = AESEncrypt(sendfee_tx.ToHex(), sessionkey);
@@ -5255,7 +5579,7 @@ namespace NebliDex_Linux
                     //Add transaction to send to the database
                     int reqtime = Convert.ToInt32(result["trade.reqtime"].ToString());
                     //Type 0 is taker to maker indirect transaction
-                    AddMyTxToDatabase(send_tx.GetHash().ToString(), my_send_add, contract_address, sendamount, redeemscript_wallet, 0, reqtime, order_nonce);
+                    AddMyTxToDatabase(my_txhash, my_send_add, contract_address, sendamount, redeemscript_wallet, 0, reqtime, order_nonce);
 
                     SetMyTransactionData("to_add_redeemscript", atomic_contract_string, reqtime, order_nonce);
                     SetMyTransactionData("counterparty_cointype", makerwallet, reqtime, order_nonce);
@@ -5271,11 +5595,11 @@ namespace NebliDex_Linux
                     if (sendfee_tx != null)
                     {
                         //Sending from NDEX wallet as separate transaction
-                        AddMyTxToDatabase(sendfee_tx.GetHash().ToString(), GetWalletAddress(3), validator_add, vn_fee, 3, 2, reqtime);
+                        AddMyTxToDatabase(sendfee_tx.GetHash().ToString(), GetWalletAddress(3), validator_add, vn_fee, 3, 2, reqtime, order_nonce);
                     }
 
                     //And add a recent trade information into the database as pending
-                    AddMyRecentTrade(myord.market, myord.type, myord.price, myord.amount, send_tx.GetHash().ToString(), 1);
+                    AddMyRecentTrade(myord.market, myord.type, myord.price, myord.amount, my_txhash, 1);
 
                     //Now create a short term Dex connection
                     DexConnection dex = new DexConnection();
@@ -5308,7 +5632,7 @@ namespace NebliDex_Linux
             return true;
         }
 
-        public static bool MakerReceiveValidatorInfo(DexConnection con, JObject js)
+		public static bool MakerReceiveValidatorInfo(DexConnection con, JObject js)
         {
             //This function will start the validation process with the validation node
             string validator_ip = js["cn.validator_ip"].ToString();
@@ -5402,12 +5726,12 @@ namespace NebliDex_Linux
                         return false;
                     }
 
-                    string destination_add = result["trade.recipient_add"].ToString(); //Get the taker's address
+                    string destination_add = result["trade.recipient_add"].ToString(); //Get the taker's receive address
                     int reqtime = Convert.ToInt32(result["trade.reqtime"].ToString());
 
                     //There is a good result to respond to
                     string validator_sig = result["cn.validator_sig"].ToString();
-					string sessionkey_encrypt = result["cn.sessionkey"].ToString(); //This will be encrypted with RSA pubkey
+                    string sessionkey_encrypt = result["cn.sessionkey"].ToString(); //This will be encrypted with RSA pubkey
                     string sessionkey_sig = result["cn.sessionkey_sig"].ToString();
                     string sessionkey = DecryptRSAText(sessionkey_encrypt, my_rsa_privkey); //Get the one-time AES key by decrypting with our RSA privatekey
 
@@ -5554,8 +5878,8 @@ namespace NebliDex_Linux
                     //Calculate our inclusion time and subtract from taker unlocktime
                     long maker_inclusion_time = GetBlockInclusionTime(taker_receivewallet, 0); //This will return the extra time to remove because of my inclusion time
                     long adjusted_ctime = taker_unlock_time - max_transaction_wait - maker_inclusion_time; //Subtract 3 hours and maker contract inclusion time
-                    if (Math.Abs(UTCTime() - adjusted_ctime) > 60 * 3)
-                    { //Contract time difference greater than 3 minutes, not allowed
+                    if (Math.Abs(UTCTime() - adjusted_ctime) > 60 * 2)
+                    { //Contract time difference greater than 2 minutes, not allowed
                         NebliDexNetLog("Contract time difference is too great");
                         TraderRejectTrade(dex, order_nonce, reqtime, true); //Send message to cancel trade
                         nStream.Close();
@@ -5563,27 +5887,65 @@ namespace NebliDex_Linux
                         return false;
                     }
 
-                    Script taker_contract = CreateAtomicSwapScript(GetWalletAddress(maker_receivewallet), taker_send_add, secret_hash, taker_unlock_time);
-                    string taker_contract_address = CreateAtomicSwapAddress(maker_receivewallet, taker_contract);
-
-                    if (taker_contract_address.Equals(prelim_taker_contract_add) == false)
+                    Script taker_contract = null;
+                    string taker_contract_address = "";
+                    if (GetWalletBlockchainType(maker_receivewallet) != 6)
                     {
-                        //Taker contract doesn't match the recreated one, not right
-                        NebliDexNetLog("Generated taker contract address doesn't match given");
-                        TraderRejectTrade(dex, order_nonce, reqtime, true); //Send message to cancel trade
-                        nStream.Close();
-                        client.Close();
-                        return false;
+                        //Taker is sending non-Eth to maker
+                        taker_contract = CreateAtomicSwapScript(GetWalletAddress(maker_receivewallet), taker_send_add, secret_hash, taker_unlock_time);
+                        taker_contract_address = CreateAtomicSwapAddress(maker_receivewallet, taker_contract);
+
+                        if (taker_contract_address.Equals(prelim_taker_contract_add) == false)
+                        {
+                            //Taker contract doesn't match the recreated one, not right
+                            NebliDexNetLog("Generated taker contract address doesn't match given");
+                            TraderRejectTrade(dex, order_nonce, reqtime, true); //Send message to cancel trade
+                            nStream.Close();
+                            client.Close();
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        //The taker is sending Ethereum to the smart contract address
+                        taker_contract_address = ETH_ATOMICSWAP_ADDRESS;
+                        if (taker_contract_address.Equals(prelim_taker_contract_add) == false)
+                        {
+                            //Make sure taker has the same contract address as we do
+                            NebliDexNetLog("Taker ethereum contract doesn't match mine.");
+                            TraderRejectTrade(dex, order_nonce, reqtime, true); //Send message to cancel trade
+                            nStream.Close();
+                            client.Close();
+                            return false;
+                        }
                     }
 
                     //Now we generate our own maker contract
                     //This expires in 1.5 hours after taker contract creation
                     string my_send_add = GetWalletAddress(taker_receivewallet);
+
+                    //Determine if we are sending an enthereum smart contract
+                    bool sending_eth = false;
+                    if (GetWalletBlockchainType(taker_receivewallet) == 6)
+                    {
+                        sending_eth = true;
+                    }
+
                     long contract_unlock_time = adjusted_ctime + max_transaction_wait / 2; //1.5 hours the contract will expire 
                     long refund_contract_time = GetBlockInclusionTime(taker_receivewallet, contract_unlock_time);
-                    Script atomic_contract_script = CreateAtomicSwapScript(destination_add, my_send_add, secret_hash, contract_unlock_time);
-                    string atomic_contract_string = atomic_contract_script.ToString();
-                    string contract_address = CreateAtomicSwapAddress(taker_receivewallet, atomic_contract_script);
+
+                    string atomic_contract_string = "Not Present";
+                    string contract_address;
+                    if (sending_eth == false)
+                    {
+                        Script atomic_contract_script = CreateAtomicSwapScript(destination_add, my_send_add, secret_hash, contract_unlock_time);
+                        atomic_contract_string = atomic_contract_script.ToString();
+                        contract_address = CreateAtomicSwapAddress(taker_receivewallet, atomic_contract_script);
+                    }
+                    else
+                    {
+                        contract_address = ETH_ATOMICSWAP_ADDRESS;
+                    }
 
                     //Bitcoin public/private keypair not suitable for encryption, must use RSA encryption for keys
                     //Then symmetric encryption (AES) for actual transaction
@@ -5628,7 +5990,16 @@ namespace NebliDex_Linux
                     //Add transaction to send to the database                   
                     //Type 5 is maker to taker indirect transaction, waiting for payment
                     //We do not have a linked transaction yet to this contract (no money has been sent yet)
-                    AddMyTxToDatabase("", my_send_add, contract_address, sendamount, taker_receivewallet, 5, reqtime, order_nonce);
+                    if (sending_eth == false)
+                    {
+                        AddMyTxToDatabase("", my_send_add, contract_address, sendamount, taker_receivewallet, 5, reqtime, order_nonce);
+                    }
+                    else
+                    {
+                        //We store the taker's receive address of the ethereum contract directly, this is different than taker
+                        //As we need to create a contract based on it
+                        AddMyTxToDatabase("", my_send_add, destination_add, sendamount, taker_receivewallet, 5, reqtime, order_nonce);
+                    }
                     SetMyTransactionData("to_add_redeemscript", atomic_contract_string, reqtime, order_nonce);
                     SetMyTransactionData("counterparty_cointype", maker_receivewallet, reqtime, order_nonce);
                     SetMyTransactionData("atomic_unlock_time", contract_unlock_time, reqtime, order_nonce);
@@ -5637,7 +6008,10 @@ namespace NebliDex_Linux
                     SetMyTransactionData("atomic_secret_hash", secret_hash, reqtime, order_nonce);
                     SetMyTransactionData("custodial_redeemscript_add", taker_contract_address, reqtime, order_nonce);
                     //Redeem script is used to redeem from taker contract once secret is known
-                    SetMyTransactionData("custodial_redeemscript", taker_contract.ToString(), reqtime, order_nonce);
+                    if (taker_contract != null)
+                    {
+                        SetMyTransactionData("custodial_redeemscript", taker_contract.ToString(), reqtime, order_nonce);
+                    }
                     SetMyTransactionData("validating_nodes", validator_ip, reqtime, order_nonce); //Set the validator IP in case connection drops
 
                     if (sendfee_tx != null)
@@ -5726,7 +6100,7 @@ namespace NebliDex_Linux
             SendCNServerAction(con, 46, JsonConvert.SerializeObject(txinfo));
         }
 
-        public static void TakerConfirmTrade(DexConnection con, JObject js)
+		public static void TakerConfirmTrade(DexConnection con, JObject js)
         {
             //Final step before validating node leaves the rest of the process up to the nodes themselves
             //Taker will confirm with validator that information is correct or not
@@ -5771,24 +6145,38 @@ namespace NebliDex_Linux
                 //For some reason, not available
                 return;
             }
+
             long taker_unlock_time = Convert.ToInt64(GetMyTransactionData("atomic_unlock_time", reqtime, order_nonce)); //First get taker unlock_time
             string secret_hash = GetMyTransactionData("atomic_secret_hash", reqtime, order_nonce);
             int taker_receivewallet = Convert.ToInt32(GetMyTransactionData("counterparty_cointype", reqtime, order_nonce));
             long maker_inclusion_time = GetBlockInclusionTime(taker_receivewallet, 0);
-            long maker_unlock_time = taker_unlock_time - maker_inclusion_time - max_transaction_wait / 2; //Then calculate maker unlock time    
-            string my_receive_add = GetWalletAddress(taker_receivewallet);         
-            Script maker_contract_script = CreateAtomicSwapScript(my_receive_add, maker_send_add, secret_hash, maker_unlock_time);
-            string maker_contract_add = CreateAtomicSwapAddress(taker_receivewallet, maker_contract_script);
+            long maker_unlock_time = taker_unlock_time - maker_inclusion_time - max_transaction_wait / 2; //Then calculate maker unlock time            
+            string my_receive_add = GetWalletAddress(taker_receivewallet);
 
-            if (maker_contract_add.Equals(prelim_maker_contract_add) == false)
+            if (GetWalletBlockchainType(taker_receivewallet) != 6)
             {
-                NebliDexNetLog("Maker contract doesn't match expected");
-                trade_ok = false;
-            }
+                Script maker_contract_script = CreateAtomicSwapScript(my_receive_add, maker_send_add, secret_hash, maker_unlock_time);
+                string maker_contract_add = CreateAtomicSwapAddress(taker_receivewallet, maker_contract_script);
 
-            //Store the redeem script and the address
-            SetMyTransactionData("custodial_redeemscript_add", maker_contract_add, reqtime, order_nonce);
-            SetMyTransactionData("custodial_redeemscript", maker_contract_script.ToString(), reqtime, order_nonce);
+                if (maker_contract_add.Equals(prelim_maker_contract_add) == false)
+                {
+                    NebliDexNetLog("Maker contract doesn't match expected");
+                    trade_ok = false;
+                }
+
+                //Store the redeem script and the address
+                SetMyTransactionData("custodial_redeemscript_add", maker_contract_add, reqtime, order_nonce);
+                SetMyTransactionData("custodial_redeemscript", maker_contract_script.ToString(), reqtime, order_nonce);
+            }
+            else
+            {
+                //We are receiving Ethereum from the smart contract, will wait for a balance
+                if (prelim_maker_contract_add.Equals(ETH_ATOMICSWAP_ADDRESS) == false)
+                {
+                    NebliDexNetLog("Maker ethereum contract address doesn't match expected");
+                    trade_ok = false;
+                }
+            }
 
             JObject vjs = new JObject();
             vjs["cn.method"] = "cn.validator_takerconfirm";
@@ -5826,7 +6214,7 @@ namespace NebliDex_Linux
             NebliDexNetLog("Taker finished processing secondary validation information: " + order_nonce);
         }
 
-        public static bool CheckErrorMessage(string msg)
+		public static bool CheckErrorMessage(string msg)
         {
             //This method checks error messages to make sure they fit pre-defined list
             //Used to prevent malicious strings from being transmitted to client (ie. Electrum hack)
@@ -5894,12 +6282,14 @@ namespace NebliDex_Linux
                     return true;
                 case "CN Rejected: NDEX balance below CN minimum":
                     return true;
-                case "CN Rejected: Client is not synced with active CN time":
+                case "CN Rejected: Client time is not synced with active CN time":
                     return true;
                 case "CN Rejected: Unable to connect to your Client. Check your firewall.":
                     return true;
-				case "CN Rejected: Client IP must match sending IP":
-					return true;
+                case "CN Rejected: Client IP must match sending IP":
+                    return true;
+                case "Order Request Denied: You do not have enough balance to match this order in the Ethereum contract":
+                    return true;
                 default:
                     return false;
             }
