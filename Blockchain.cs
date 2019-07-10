@@ -2795,11 +2795,24 @@ namespace NebliDex_Linux
                         if (dex.blockdata == "") { timeout = true; return ""; }
                         blockdata = dex.blockdata;
                     }
+
+					//Search for malicious responses from electrum server (source of major hack to electrum network)
+                    if (blockdata.IndexOf(">", StringComparison.InvariantCulture) >= 0 || blockdata.IndexOf(".com", StringComparison.InvariantCulture) >= 0)
+                    {
+                        //There is a script here that is not supposed to be here
+                        NebliDexNetLog("Transaction broadcast failed: Incidentally connected to malicious electrum server, disconnecting and removing");
+                        RemoveElectrumServer(-1, dex.ip_address[0]); //Remove the IP address from our list
+                        dex.open = false;
+                        timeout = true; //Tell client tx failed to even broadcast
+                        return ""; //Failed broadcast
+                    }
+
                     NebliDexNetLog("Electrum transaction response: " + blockdata);
                     JObject result = JObject.Parse(blockdata);
                     if (result["result"] == null)
                     {
                         //No transaction ID
+						dex.open = false; //Disconnect and reconnect, then try again
                         return ""; //Failed broadcast
                     }
                     return result["result"].ToString(); //Should be transaction ID hash

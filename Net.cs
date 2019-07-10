@@ -1267,8 +1267,6 @@ namespace NebliDex_Linux
                     bool success = RemoveElectrumServer(f_index, electrum_info[0]);
                     if (success == false)
                     {
-                        File.Delete(App_Path + "/data/electrum_peers.dat"); //Remove the electrum_peers
-                        NebliDexNetLog("All electrum servers are down, unable to connect");
                         //The program will redownload the list on the next connect
                         break; //Will try again next loop
                     }
@@ -3233,67 +3231,91 @@ namespace NebliDex_Linux
         {
             if (File.Exists(App_Path + "/data/electrum_peers.dat") == false)
             {
+                NebliDexNetLog("All electrum servers are down, unable to connect");
                 return false;
             }
 
-            try
-            {
-                using (System.IO.StreamReader file_in =
-                    new System.IO.StreamReader(@App_Path + "/data/electrum_peers.dat", false))
+            //Type -1 means delete IP address in all coin types
+
+            lock (DexConnectionList)
+            { //Wait till this list is available
+                try
                 {
-                    using (System.IO.StreamWriter file_out =
-                        new System.IO.StreamWriter(@App_Path + "/data/electrum_peers_new.dat", false))
+                    using (System.IO.StreamReader file_in =
+                        new System.IO.StreamReader(@App_Path + "/data/electrum_peers.dat", false))
                     {
-                        int index = type;
-                        while (file_in.EndOfStream == false)
+                        using (System.IO.StreamWriter file_out =
+                            new System.IO.StreamWriter(@App_Path + "/data/electrum_peers_new.dat", false))
                         {
-                            int num = Convert.ToInt32(file_in.ReadLine()); //Get number of nodes
-                            if (index == 0)
+                            int index = type;
+                            List<string> server_info = new List<string>();
+                            while (file_in.EndOfStream == false)
                             {
-                                file_out.WriteLine("" + (num - 1));
-                                if (num - 1 < 1)
+                                int num = Convert.ToInt32(file_in.ReadLine()); //Get number of nodes
+                                int server_count = 0;
+                                server_info.Clear();
+                                for (int i = 0; i < num; i++)
                                 {
-                                    //No nodes left for blockchain type
+                                    string ip_read = file_in.ReadLine();
+                                    string port = file_in.ReadLine();
+                                    if (ip_read.Equals(ip) == false)
+                                    {
+                                        server_info.Add(ip_read);
+                                        server_info.Add(port);
+                                        server_count++;
+                                    }
+                                    else
+                                    {
+                                        //This is a matching IP to remove
+                                        if (index != 0 && type >= 0)
+                                        {
+                                            //But not from the same blockchaintype
+                                            server_info.Add(ip_read);
+                                            server_info.Add(port);
+                                            server_count++;
+                                        }
+                                        else if (type >= 0)
+                                        {
+                                            ip = ""; //Only remove an IP address once
+                                        }
+                                    }
+                                }
+
+                                file_out.WriteLine(server_count.ToString());
+                                if (server_count == 0)
+                                {
+                                    //No more nodes left for blockchain type
                                     file_out.Close();
+                                    file_in.Close();
                                     File.Delete(App_Path + "/data/electrum_peers_new.dat");
+                                    File.Delete(App_Path + "/data/electrum_peers.dat");
+                                    NebliDexNetLog("Blockchain " + type + " missing nodes, must redownload nodes, unable to connect");
                                     return false; //Must re-download all nodes for all blockchain types
                                 }
-                            }
-                            else
-                            {
-                                file_out.WriteLine("" + num);
-                            }
-                            for (int i = 0; i < num; i++)
-                            {
-                                string ip_read = file_in.ReadLine();
-                                string port = file_in.ReadLine();
-                                if (ip_read.Equals(ip) == false || index != 0)
+
+                                //Now write out the servers information
+                                for (int i = 0; i < server_count; i++)
                                 {
-                                    file_out.WriteLine(ip_read);
-                                    file_out.WriteLine(port);
+                                    file_out.WriteLine(server_info[i * 2]);
+                                    file_out.WriteLine(server_info[i * 2 + 1]);
                                 }
-                                else
-                                {
-                                    //Don't write the data and remove the checking IP
-                                    ip = ""; //Only remove an IP address once
-                                }
+                                index--;
                             }
-                            index--;
                         }
                     }
-                }
 
-                //Move the files around so we don't store anything in memory
-                if (File.Exists(App_Path + "/data/electrum_peers_new.dat") != false)
-                {
-                    File.Delete(App_Path + "/data/electrum_peers.dat");
-                    File.Move(App_Path + "/data/electrum_peers_new.dat", App_Path + "/data/electrum_peers.dat");
+                    //Move the files around so we don't store anything in memory
+                    if (File.Exists(App_Path + "/data/electrum_peers_new.dat") != false)
+                    {
+                        File.Delete(App_Path + "/data/electrum_peers.dat");
+                        File.Move(App_Path + "/data/electrum_peers_new.dat", App_Path + "/data/electrum_peers.dat");
+                    }
                 }
-            }
-            catch (Exception)
-            {
-                NebliDexNetLog("Failed to write the new electrum_peers.dat");
-                return false;
+                catch (Exception)
+                {
+                    NebliDexNetLog("Failed to write the new electrum_peers.dat");
+                    return false;
+                }
             }
 
             return true;
