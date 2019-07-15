@@ -23,7 +23,6 @@ If you want to create a bundle that is not dependent on Mono, see mkbundle comma
 ### Linux
 Depending on the exact distribution of Linux you are running the steps can vary.
 * Install Mono Develop from here: https://www.monodevelop.com/download/#fndtn-download-lin
-* Run code: `sudo apt-get install monodevelop`
 * Open Solution
 * Build and Run in Terminal
 
