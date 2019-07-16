@@ -38,7 +38,7 @@ namespace NebliDex_Linux
         //Added 2 new wallets for stablecoins USDC, DAI based on ERC20 standard     
         //NDEX/GRS, NDEX/MONA, NDEX/DAI, NDEX/USDC, NDEX/BCH, NDEX/ETH
         //NEBL/DAI, NEBL/USDC, LTC/DAI, LTC/USDC, BTC/DAI, BTC/USDC, BCH/DAI 
-        //GRS/DAI, MONA/USDC
+        //GRS/DAI, MONA/DAI
 
 		public static string App_Path = AppDomain.CurrentDomain.BaseDirectory;
 
@@ -371,9 +371,9 @@ namespace NebliDex_Linux
                 }
                 else if (index == 36)
                 {
-                    base_symbol = "USDC";
+                    base_symbol = "DAI";
                     trade_symbol = "MONA";
-                    base_wallet = 19;
+                    base_wallet = 18;
                     trade_wallet = 16; //MONA
                 }
 			}
