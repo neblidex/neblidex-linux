@@ -22,20 +22,23 @@ namespace NebliDex_Linux
         public static int default_ui_look = 0; //UI look when ExchangeWindow opens
 
 		//Mainnet version
-		public static int protocol_version = 6; //My protocol version
-		public static int protocol_min_version = 6; //Minimum accepting protocol version
-		public static string version_text = "v6.0.2";
+		public static int protocol_version = 7; //My protocol version
+		public static int protocol_min_version = 7; //Minimum accepting protocol version
+		public static string version_text = "v7.0.0";
 		public static bool run_headless = false; //If true, this software is ran in critical node mode without GUI on startup
 		public static bool http_open_network = true; //This becomes false if user closes window
 		public static int sqldatabase_version = 3;
 		public static int accountdat_version = 1; //The version of the account wallet
 
-		//Lowest testnet version: 6
-		//Lowest mainnet version: 6
+		//Lowest testnet version: 7
+		//Lowest mainnet version: 7
 
-		//Version 6
-        //updated Electrum servers to SSL
-        //Added GRS/NEBL, BCH/BTC, LTC/BTC, MONA/BTC, MONA/LTC, ETH/BTC, ETH/LTC
+		//Version 7
+        //Added new markets (15!)
+        //Added 2 new wallets for stablecoins USDC, DAI based on ERC20 standard     
+        //NDEX/GRS, NDEX/MONA, NDEX/DAI, NDEX/USDC, NDEX/BCH, NDEX/ETH
+        //NEBL/DAI, NEBL/USDC, LTC/DAI, LTC/USDC, BTC/DAI, BTC/USDC, BCH/DAI 
+        //GRS/DAI, MONA/USDC
 
 		public static string App_Path = AppDomain.CurrentDomain.BaseDirectory;
 
@@ -52,7 +55,7 @@ namespace NebliDex_Linux
 		public static int wlan_mode = 0; //0 = Internet, 1 = WLAN, 2 = Localhost (This is for CN IP addresses returned)
         
 		public static int exchange_market = 2; //NDEX/NEBL
-        public static int total_markets = 22;
+        public static int total_markets = 37;
         public static int total_scan_markets = total_markets; // This number will vary if we are updating the markets
         public static int total_cointypes = 7; 
 		//The total amount of cointypes supported by NebliDex
@@ -267,6 +270,111 @@ namespace NebliDex_Linux
                     trade_symbol = "MONA";
                     base_wallet = 2;
                     trade_wallet = 16; //MONA
+				}
+                else if (index == 22)
+                {
+                    base_symbol = "GRS";
+                    trade_symbol = "NDEX";
+                    base_wallet = 14;
+                    trade_wallet = 3; //NDEX
+                }
+                else if (index == 23)
+                {
+                    base_symbol = "MONA";
+                    trade_symbol = "NDEX";
+                    base_wallet = 16;
+                    trade_wallet = 3; //NDEX
+                }
+                else if (index == 24)
+                {
+                    base_symbol = "BCH";
+                    trade_symbol = "NDEX";
+                    base_wallet = 15;
+                    trade_wallet = 3; //NDEX
+                }
+                else if (index == 25)
+                {
+                    base_symbol = "ETH";
+                    trade_symbol = "NDEX";
+                    base_wallet = 17;
+                    trade_wallet = 3; //NDEX
+                }
+                else if (index == 26)
+                {
+                    base_symbol = "DAI";
+                    trade_symbol = "NDEX";
+                    base_wallet = 18; //DAI
+                    trade_wallet = 3; //NDEX
+                }
+                else if (index == 27)
+                {
+                    base_symbol = "USDC";
+                    trade_symbol = "NDEX";
+                    base_wallet = 19; //USDC
+                    trade_wallet = 3; //NDEX
+                }
+                else if (index == 28)
+                {
+                    base_symbol = "DAI";
+                    trade_symbol = "NEBL";
+                    base_wallet = 18;
+                    trade_wallet = 0; //NEBL
+                }
+                else if (index == 29)
+                {
+                    base_symbol = "USDC";
+                    trade_symbol = "NEBL";
+                    base_wallet = 19;
+                    trade_wallet = 0; //NEBL
+                }
+                else if (index == 30)
+                {
+                    base_symbol = "DAI";
+                    trade_symbol = "LTC";
+                    base_wallet = 18;
+                    trade_wallet = 2; //LTC
+                }
+                else if (index == 31)
+                {
+                    base_symbol = "USDC";
+                    trade_symbol = "LTC";
+                    base_wallet = 19;
+                    trade_wallet = 2; //LTC
+                }
+                else if (index == 32)
+                {
+                    base_symbol = "DAI";
+                    trade_symbol = "BTC";
+                    base_wallet = 18;
+                    trade_wallet = 1; //BTC
+                }
+                else if (index == 33)
+                {
+                    base_symbol = "USDC";
+                    trade_symbol = "BTC";
+                    base_wallet = 19;
+                    trade_wallet = 1; //BTC
+                }
+                else if (index == 34)
+                {
+                    base_symbol = "DAI";
+                    trade_symbol = "BCH";
+                    base_wallet = 18;
+                    trade_wallet = 15; //BCH
+                }
+                else if (index == 35)
+                {
+                    base_symbol = "DAI";
+                    trade_symbol = "GRS";
+                    base_wallet = 18;
+                    trade_wallet = 14; //GRS
+                }
+                else if (index == 36)
+                {
+                    base_symbol = "USDC";
+                    trade_symbol = "MONA";
+                    base_wallet = 19;
+                    trade_wallet = 16; //MONA
                 }
 			}
 
@@ -294,7 +402,7 @@ namespace NebliDex_Linux
 			public int status = 0; //0 - avail, 1 - pending, 2 - waiting
 			public int blockchaintype = 0;
 
-			public static int total_coin_num = 18; //Total number of possible different wallet coins
+			public static int total_coin_num = 20; //Total number of possible different wallet coins
 
             public static bool CoinActive(int ctype)
             { //Coins that are not active anymore
@@ -306,6 +414,15 @@ namespace NebliDex_Linux
                 {
                     return true;
                 }
+            }
+
+			public static bool CoinERC20(int ctype)
+            {
+                if (ctype == 18 || ctype == 19)
+                { //New ETH based ERC20 tokens
+                    return true;
+                }
+                return false;
             }
 
             public static bool CoinNTP1(int ctype)
@@ -377,7 +494,7 @@ namespace NebliDex_Linux
                 {
                     return 5;
                 }
-                else if (type == 17)
+				else if (type == 17 || type == 18 || type == 19)
                 {
                     return 6;
                 }
@@ -459,10 +576,58 @@ namespace NebliDex_Linux
                     else if (type == 17)
                     {
                         return "ETH"; //Ethereum
+					}
+					else if (type == 18)
+                    {
+                        return "DAI"; //DAI ERC20 stablecoin
+                    }
+                    else if (type == 19)
+                    {
+                        return "USDC"; //USDC ERC20 stablecoin
                     }
 					return "";
 				}
 			}
+
+			public string ERC20Contract
+            {
+                get
+                {
+                    if(blockchaintype != 6){ //Not ETH
+                        return "";
+                    }else if(type == 18){ //DAI Contract
+                        if(testnet_mode == false){
+                            return "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"; 
+                        }else{
+                            return "0xDE24730E12C76a269E99b8E7668A0b73102AfCa1"; //Using REP Rinkeby testnet tokens as DAI doesn't have any
+                        }
+                    }else if(type == 19){ //USDC Proxy Contract
+                        //USDC has upgradeable contracts
+                        if(testnet_mode == false){
+                            return "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+                        }else{
+                            return ""; //USDC doesn't have a testnet
+                        }
+                    }
+                    return "";                  
+                }
+            }
+
+            //The amount of decimal places for the token
+            public decimal ERC20Decimals
+            {
+                get
+                {
+                    if(blockchaintype != 6){ //Not ETH
+                        return 8;
+                    }else if(type == 18){ //DAI Contract
+                        return 18; //Dai contracts have 18 decimal places
+                    }else if(type == 19){
+                        return 6; //USDC has 6 decimal places
+                    }
+                    return 8;                   
+                }
+            }   
 
 			public string TokenID
 			{
@@ -1785,11 +1950,11 @@ namespace NebliDex_Linux
             //Now calculate the totals for ethereum blockchain
             if (trade_wallet_blockchaintype == 6)
             {
-                block_fee1 = GetEtherContractTradeFee();
+				block_fee1 = GetEtherContractTradeFee(Wallet.CoinERC20(MarketList[ord.market].trade_wallet));
             }
             if (base_wallet_blockchaintype == 6)
             {
-                block_fee2 = GetEtherContractTradeFee();
+				block_fee2 = GetEtherContractTradeFee(Wallet.CoinERC20(MarketList[ord.market].base_wallet));
             }
 
             decimal total = ord.original_amount * ord.price;
@@ -2122,18 +2287,21 @@ namespace NebliDex_Linux
 
                         //Calculate the amounts to be send from who to who
                         int taker_sendwallet = 0;
+						int maker_sendwallet = 0;
                         if (req.type == 0)
                         {
                             //Taker is buying trade market account
                             taker_receive = amount; //The amount of trade symbol taker is getting
                             maker_receive = Math.Round(amount * price, 8); //The amount of base symbol maker is getting
                             taker_sendwallet = MarketList[req.market].base_wallet;
+							maker_sendwallet = MarketList[req.market].trade_wallet;
                         }
                         else
                         {
                             taker_receive = Math.Round(amount * price, 8); //The amount of base symbol taker is getting
                             maker_receive = amount; //The amount of trade symbol maker is getting
                             taker_sendwallet = MarketList[req.market].trade_wallet;
+							maker_sendwallet = MarketList[req.market].base_wallet;
                         }
 
                         if (MarketList[req.market].base_wallet == 3 || MarketList[req.market].trade_wallet == 3)
@@ -2157,11 +2325,11 @@ namespace NebliDex_Linux
                         //Now calculate the totals for ethereum blockchain
                         if (trade_wallet_blockchaintype == 6)
                         {
-                            block_fee1 = GetEtherContractTradeFee();
+							block_fee1 = GetEtherContractTradeFee(Wallet.CoinERC20(MarketList[req.market].trade_wallet));
                         }
                         if (base_wallet_blockchaintype == 6)
                         {
-                            block_fee2 = GetEtherContractTradeFee();
+							block_fee2 = GetEtherContractTradeFee(Wallet.CoinERC20(MarketList[req.market].base_wallet));
                         }
 
                         if (amount < block_fee1 || (amount * price) < block_fee2)
@@ -2187,10 +2355,23 @@ namespace NebliDex_Linux
                             {
                                 //The Taker is not sending Ethereum but still needs some to interact with contract
                                 decimal taker_eth = GetBlockchainAddressBalance(GetWalletType(6), req.to_add_2, false);
-                                if (taker_eth < GetEtherContractRedeemFee())
+								if (taker_eth < GetEtherContractRedeemFee(Wallet.CoinERC20(maker_sendwallet)))
                                 {
                                     //Not enough Ethereum in taker account to interact with contract
                                     return "Order Request Denied: You do not have enough balance to match this order in the Ethereum contract";
+                                }
+							}
+							else
+                            {
+                                //The taker is sending ETH
+                                if (Wallet.CoinERC20(taker_sendwallet) == true)
+                                {
+                                    //Make sure that the taker has an allowance greater than or equal to what he/she is sending
+                                    if (GetERC20AtomicSwapAllowance(req.from_add_1, ERC20_ATOMICSWAP_ADDRESS, taker_sendwallet) < req.amount_1)
+                                    {
+                                        //Allowance is too small
+                                        return "Order Request Denied: You have not authorized enough allowance to complete this trade";
+                                    }
                                 }
                             }
                         }
@@ -2398,7 +2579,7 @@ namespace NebliDex_Linux
                 }
                 else
                 {
-                    if (sendamount < GetEtherContractTradeFee()) { return false; }
+					if (sendamount < GetEtherContractTradeFee(Wallet.CoinERC20(sendwallet))) { return false; }
                 }
             }
             else
@@ -2811,6 +2992,22 @@ namespace NebliDex_Linux
                                 WalletList.Add(wal2);
                             }
                         }
+					}else if (wal.type == 17)
+                    {
+                        //ERC20 Tokens
+                        for (int i2 = 0; i2 < Wallet.total_coin_num; i2++)
+                        {
+                            if (Wallet.CoinERC20(i2) == true && Wallet.CoinActive(i2) == true)
+                            {
+                                //Wallet is Active and ERC20, add it to ethereum wallet address                             
+                                Wallet wal2 = new Wallet();
+                                wal2.type = i2;
+                                wal2.private_key = wal.private_key;
+                                wal2.address = wal.address;
+                                wal2.blockchaintype = 6; //ETH based
+                                WalletList.Add(wal2);
+                            }
+                        }
                     }
                 }
             }
@@ -2874,6 +3071,25 @@ namespace NebliDex_Linux
                             }
                             file.WriteLine(privatekey);
                             file.WriteLine(myaddress);
+
+							//Add the ERC20 tokens
+                            if (wal.type == 17)
+                            {
+                                //ERC20 Tokens
+                                for (int i2 = 0; i2 < Wallet.total_coin_num; i2++)
+                                {
+                                    if (Wallet.CoinERC20(i2) == true && Wallet.CoinActive(i2) == true)
+                                    {
+                                        //Wallet is Active and ERC20, add it to ethereum wallet address                             
+                                        Wallet wal2 = new Wallet();
+                                        wal2.type = i2;
+                                        wal2.private_key = wal.private_key;
+                                        wal2.address = wal.address;
+                                        wal2.blockchaintype = 6; //ETH based
+                                        WalletList.Add(wal2);
+                                    }
+                                }
+                            }
                         }
                         file.Flush();
                     }
@@ -2981,6 +3197,27 @@ namespace NebliDex_Linux
                 return;
             }
 
+			//TODO: Figure out way to transfer ETH tokens as well in one transaction, otherwise, skip ETH transfer and tell user
+            bool skip_eth = false;
+            for (int i = 0; i < WalletList.Count; i++)
+            {
+                if (Wallet.CoinERC20(WalletList[i].type) == true)
+                {
+                    if (WalletList[i].balance > 0)
+                    {
+                        skip_eth = true; break; //There are tokens present, cannot change eth address
+                    }
+                }
+            }
+
+			if (skip_eth == true)
+            {
+				Application.Invoke(delegate
+                {
+					MessageBox(null, "Notice", "Changing all addresses except Ethereum due to ERC20 tokens present at address", "OK");
+                });
+            }
+
             //This function will add a private key (with address as well) for all wallets 1 by 1
 			for (int i = 0; i < total_cointypes; i++)
             {
@@ -3003,10 +3240,10 @@ namespace NebliDex_Linux
                         if (i != 6)
                         {
                             testtx = CreateSignedP2PKHTx(wallet_type, bal, curr_add, false, false);
-                        }
-                        else
+						}
+						else if (skip_eth == false)
                         {
-                            testeth_tx = CreateSignedEthereumTransaction(curr_add, bal, false, 0, "");
+                            testeth_tx = CreateSignedEthereumTransaction(wallet_type, curr_add, bal, false, 0, "");
                         }
                     }
                 }
@@ -3049,7 +3286,7 @@ namespace NebliDex_Linux
                         }
                         else if (testeth_tx != null)
                         {
-                            Nethereum.Signer.TransactionChainId eth_tx = CreateSignedEthereumTransaction(new_add, bal, false, 0, "");
+							Nethereum.Signer.TransactionChainId eth_tx = CreateSignedEthereumTransaction(wallet_type,new_add, bal, false, 0, "");
                             bool timeout;
                             TransactionBroadcast(wallet_type, eth_tx.Signed_Hex, out timeout);
                             if (timeout == false)
@@ -3378,11 +3615,37 @@ namespace NebliDex_Linux
             {
                 if (WalletList[i].type == wallet)
                 {
-                    //Find the wallet and return the balance
+                    //Find the wallet and return the ID
                     return WalletList[i].TokenID;
                 }
             }
             return "";
+        }
+
+		public static string GetWalletERC20TokenContract(int wallet)
+        {
+            for (int i = 0; i < WalletList.Count; i++)
+            {
+                if (WalletList[i].type == wallet)
+                {
+                    //Find the wallet and return the Contract
+                    return WalletList[i].ERC20Contract;
+                }
+            }
+            return "";
+        }
+
+        public static decimal GetWalletERC20TokenDecimals(int wallet)
+        {
+            for (int i = 0; i < WalletList.Count; i++)
+            {
+                if (WalletList[i].type == wallet)
+                {
+                    //Find the wallet and return the Contract
+                    return WalletList[i].ERC20Decimals;
+                }
+            }
+            return 0;
         }
 
         public static void UpdateWalletStatus(int wallettype, int status)
@@ -3507,7 +3770,7 @@ namespace NebliDex_Linux
                     }
                     else
                     {
-                        block_fee = GetEtherContractTradeFee();
+						block_fee = GetEtherContractTradeFee(Wallet.CoinERC20(sendwallet));
                     }
                 }
             }
@@ -3543,7 +3806,7 @@ namespace NebliDex_Linux
                     else
                     {
                         //We are sending ethereum to eventual contract, will need at least 265,000 units of gas to cover transfer
-                        block_fee = GetEtherContractTradeFee();
+						block_fee = GetEtherContractTradeFee(Wallet.CoinERC20(sendwallet));
                     }
                 }
             }
@@ -3551,7 +3814,7 @@ namespace NebliDex_Linux
             //This is unique to Ethereum, but both the sender and receiver must have a little ethereum to interact with the ethereum contract
             if (GetWalletBlockchainType(MarketList[market].trade_wallet) == 6 || GetWalletBlockchainType(MarketList[market].base_wallet) == 6)
             {
-                decimal ether_fee = GetEtherContractRedeemFee();
+				decimal ether_fee = GetEtherContractRedeemFee(Wallet.CoinERC20(sendwallet));
                 if (GetWalletAmount(GetWalletType(6)) < ether_fee)
                 {
                     msg = "Your Ether wallet requires a small amount of Ether (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", ether_fee) + " ETH) to interact with the Swap contract.";
@@ -3574,11 +3837,26 @@ namespace NebliDex_Linux
             }
             else
             {
-                mybalance = GetWalletAmount(sendwallet);
-                if (mybalance - amount < block_fee)
+				if (Wallet.CoinERC20(sendwallet) == false)
                 {
-                    msg = "Your future balance after the trade is not high enough to pay for the blockchain fees.";
-                    return false;
+                    mybalance = GetWalletAmount(sendwallet);
+                    if (mybalance - amount < block_fee)
+                    {
+                        msg = "Your future balance after the trade is not high enough to pay for the blockchain fees.";
+                        return false;
+                    }
+                }
+                else
+                {
+                    //Sending an ERC20
+                    //Eth balance needs to be greater than block_fee to send tokens
+                    mybalance = GetWalletAmount(17); //ETH wallet
+                    if (mybalance < block_fee)
+                    {
+                        //Not enough to pay for ETH fees
+                        msg = "This ERC20 token requires a small ETH balance (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", block_fee) + " ETH) to pay for blockchain fees.";
+                        return false;
+                    }
                 }
             }
 

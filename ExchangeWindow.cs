@@ -740,27 +740,38 @@ namespace NebliDex_Linux
 				int trade_wallet_blockchaintype = App.GetWalletBlockchainType(App.MarketList[App.exchange_market].trade_wallet);
                 int base_wallet_blockchaintype = App.GetWalletBlockchainType(App.MarketList[App.exchange_market].base_wallet);
 
-                //Update Status Bar Fees
-                if (trade_wallet_blockchaintype != 0)
+                //Update Status Bar Fees               
+				if (trade_wallet_blockchaintype == 0)
                 {
-                    if (trade_wallet_blockchaintype == 6)
-                    {
-						NEBL_Fee.Markup = "<span font='8'> | " + App.MarketList[App.exchange_market].trade_symbol + " Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.##}", Math.Round(App.blockchain_fee[trade_wallet_blockchaintype], 2)) + " Gwei</span>";
-					}
-                    else
-                    {
-						NEBL_Fee.Markup = "<span font='8'> | " + App.MarketList[App.exchange_market].trade_symbol + " Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", Math.Round(App.blockchain_fee[trade_wallet_blockchaintype], 8)) + "/kb</span>";
-                    }
+					NEBL_Fee.Markup = "<span font='8'> | NEBL Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", Math.Round(App.blockchain_fee[trade_wallet_blockchaintype], 8)) + "/kb</span>";
+                }
+                else if (trade_wallet_blockchaintype == 6)
+                {
+					NEBL_Fee.Markup = "<span font='8'> | ETH Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.##}", Math.Round(App.blockchain_fee[trade_wallet_blockchaintype], 2)) + " Gwei</span>";
                 }
                 else
                 {
-					NEBL_Fee.Markup = "<span font='8'> | NEBL Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", Math.Round(App.blockchain_fee[trade_wallet_blockchaintype], 8)) + "/kb</span>";
+					NEBL_Fee.Markup = "<span font='8'> | " + App.MarketList[App.exchange_market].trade_symbol + " Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", Math.Round(App.blockchain_fee[trade_wallet_blockchaintype], 8)) + "/kb</span>";
                 }
 
                 if (trade_wallet_blockchaintype != base_wallet_blockchaintype)
                 {
                     //Show both the trade and base fees
-					Base_Pair_Fee.Markup = "<span font='8'> | " + App.MarketList[App.exchange_market].base_symbol + " Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", Math.Round(App.blockchain_fee[base_wallet_blockchaintype], 8)) + "/kb</span>";
+
+					if (base_wallet_blockchaintype == 0)
+                    {
+						//NEBL Base
+						Base_Pair_Fee.Markup = "<span font='8'> | NEBL Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", Math.Round(App.blockchain_fee[base_wallet_blockchaintype], 8)) + "/kb</span>";
+                    }
+                    else if (base_wallet_blockchaintype == 6)
+                    {
+                        //ETH Base
+						Base_Pair_Fee.Markup = "<span font='8'> | ETH Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.##}", Math.Round(App.blockchain_fee[base_wallet_blockchaintype], 2)) + " Gwei</span>";
+                    }
+                    else
+                    {
+						Base_Pair_Fee.Markup = "<span font='8'> | " + App.MarketList[App.exchange_market].base_symbol + " Fee: " + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", Math.Round(App.blockchain_fee[base_wallet_blockchaintype], 8)) + "/kb</span>";
+                    }
                 }
                 else
                 {
@@ -1604,6 +1615,7 @@ namespace NebliDex_Linux
 			my_rend.ForegroundGdk = candle_darkgreenc;
 			my_rend = (Gtk.CellRendererText)Market_Box.Cells[0];
 			my_rend.Scale = 1.4;
+			Market_Box.WrapWidth = 5;
 			my_rend = (Gtk.CellRendererText)Open_Orders_List.Columns[4].CellRenderers[0];
             my_rend.Weight = 1000;
 

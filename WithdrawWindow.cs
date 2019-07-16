@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Threading;
@@ -137,9 +138,10 @@ namespace NebliDex_Linux
                 else
                 {
                     //Ethereum
-                    if (amount <= App.GetEtherWithdrawalFee())
+					decimal eth_bal = App.GetWalletAmount(17);
+                    if (eth_bal <= App.GetEtherWithdrawalFee(App.Wallet.CoinERC20(mywallet)))
                     {
-						App.MessageBox(this, "Notice", "This amount is too small to send as it is lower than the gas fee", "OK");
+						App.MessageBox(this, "Notice", "Your ETH balance is too small as it is lower than the gas fee to send this amount", "OK");
                         return;
                     }
                 }
@@ -228,7 +230,20 @@ namespace NebliDex_Linux
             {
                 //This is Ethereum transaction out
                 //This function will estimate the gas used if sending to a contract
-                Nethereum.Signer.TransactionChainId tx = App.CreateSignedEthereumTransaction(des, amount, false, 0, "");
+				Nethereum.Signer.TransactionChainId tx = null;
+                if (App.Wallet.CoinERC20(wallet) == true)
+                {
+                    //ERC20 tokens only move amounts around at a specific contract, tokens are stored in the contract but allocated to the address
+                    string token_contract = App.GetWalletERC20TokenContract(wallet);
+                    BigInteger int_amount = App.ConvertToERC20Int(amount, App.GetWalletERC20TokenDecimals(wallet));
+                    string transfer_data = App.GenerateEthereumERC20TransferData(des, int_amount);
+                    tx = App.CreateSignedEthereumTransaction(wallet, token_contract, amount, false, 0, transfer_data);
+                }
+                else
+                {
+                    //This function will estimate the gas used if sending to a contract
+                    tx = App.CreateSignedEthereumTransaction(wallet, des, amount, false, 0, "");
+                }
                 //Then add to database
                 if (tx != null)
                 {

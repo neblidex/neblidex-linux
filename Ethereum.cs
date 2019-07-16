@@ -33,7 +33,8 @@ namespace NebliDex_Linux
     {
 
         public static string ETH_ATOMICSWAP_ADDRESS; //This is the address of the publicly viewable atomic swap ethereum contract
-        public static long ETH_CALLS = -1; //This will give each query to an ethereum API a specific ID that is not reused
+		public static string ERC20_ATOMICSWAP_ADDRESS; //This is the address of the publicly viewable atomic swap erc20 contract
+		public static long ETH_CALLS = -1; //This will give each query to an ethereum API a specific ID that is not reused
 
         //Create a list of all the DNSSeeds for all electrum nodes
         public static List<EthereumApiNode> EthereumApiNodeList = new List<EthereumApiNode>();
@@ -76,8 +77,16 @@ namespace NebliDex_Linux
             return ethkey.GetPublicAddress();
         }
 
-        public static Decimal GetBlockchainEthereumBalance(string address)
+		public static Decimal GetBlockchainEthereumBalance(string address, int wallet)
         {
+			
+			//First check if the wallet is an ERC20
+            if (Wallet.CoinERC20(wallet) == true)
+            {
+                //New method to check contract
+                return GetERC20Balance(address, wallet);
+            }
+
             //This function returns the amount of ether at an address
             int api_used = (int)Math.Round(GetRandomNumber(1, EthereumApiNodeList.Count)) - 1;
             EthereumApiNode api_node = EthereumApiNodeList[api_used];
@@ -803,26 +812,25 @@ namespace NebliDex_Linux
             return -1;
         }
 
-        public static Nethereum.Signer.TransactionChainId CreateSignedEthereumTransaction(string to_address, decimal amount, bool exactamount, int txtype, string contract_data)
+		public static Nethereum.Signer.TransactionChainId CreateSignedEthereumTransaction(int wallet, string to_address, decimal amount, bool exactamount, int txtype, string contract_data)
         {
             // For Etheruem, unlike Bitcoin, even pulling ether from a contract requires the sender to pay gas fees from their private key account
             // This is done in case the transaction fails, the miner will still get the gas fee from the transaction
             // to_address can be the atomic swap contract
             // predicted gas fee is subtracted from account balance unless account balance is too small, otherwise predicted gas fee is subtracted from sending amount
             // if exactamount is true, transaction will fail and not attempt broadcast
-            // there are 4 types of txtypes:
+            // there are 5 types of txtypes:
             // 0 - Balance transfer from one ethereum account to another, standard ethereum transfer gas fee
             // 1 - Sending funds to the atomic swap ethereum contract, will increase gas fee to prepare for the eventual transfer out (refund the receiver for gas)
             // 2 - Redeem from the atomic swap ethereum contract, gas fee will be what is required to redeem from contract, essentially paying back redeemer for gas he/she spent
             // 3 - Refund from the atomic swap ethereum contract, same as above
+            // 4 - ERC20 approval to contract
             // contract_data includes preformated data that will go to the EVM
 
             decimal totalamount = 0;
             decimal change = 0;
 
-            int ether_wallet = GetWalletType(6);
-
-            totalamount = GetWalletAmount(ether_wallet); //Ether's blockchain type
+            totalamount = GetWalletAmount(wallet); //Ether's blockchain type
             change = totalamount - amount; //The ether change after the expected transfer
 
             if (change < 0) { return null; } //Not enough balance to cover the transfer amount
@@ -833,7 +841,7 @@ namespace NebliDex_Linux
                 string my_address = "";
                 for (int i = 0; i < WalletList.Count; i++)
                 {
-                    if (WalletList[i].type == ether_wallet)
+                    if (WalletList[i].type == wallet)
                     {
                         my_address = WalletList[i].address;
                         my_extended_private_key_string = WalletList[i].private_key; //Get the ethereum wallet private key
@@ -843,47 +851,88 @@ namespace NebliDex_Linux
 
                 if (my_extended_private_key_string == "") { return null; } //No private key found
 
-                decimal blockchain_ethbalance = GetBlockchainEthereumBalance(my_address);
-                blockchain_ethbalance = TruncateDecimal(blockchain_ethbalance, 8); //Match wallet balance to eight decimal places
-                if (blockchain_ethbalance.Equals(totalamount) == false)
+                decimal blockchain_balance = GetBlockchainEthereumBalance(my_address, wallet);
+                blockchain_balance = TruncateDecimal(blockchain_balance, 8); //Match wallet balance to eight decimal places
+                if (blockchain_balance.Equals(totalamount) == false)
                 {
                     NebliDexNetLog("Blockchain amount doesn't match account total.");
                     return null;
                 }
 
+                bool is_erc20_token = Wallet.CoinERC20(wallet); //ERC20 tokens have a different set of rules
+
                 //Now we need to calculate the gas that will be used for the transaction
                 BigInteger wei_gas_limit = 21000; //This is the base gas in wei (and the only one used for an ethereum normal transaction)
                 BigInteger wei_gas_limit_extra = 0; //The wei goes to the contract as extra ether 
-                if (txtype == 1)
+
+                if (is_erc20_token == false)
                 {
-                    //Gas used to deposit into contract is around 154,509 units
-                    //Sending to atomic swap smart contract, need more gas
-                    wei_gas_limit = 160000;
-                    wei_gas_limit_extra = 112000; //We will send extra ether into contract to cover eventual transfer out
-                }
-                else if (txtype == 2)
-                {
-                    //Gas used to redeem from contract is around 107,505        
-                    //Redeeming from atomic swap smart contract
-                    wei_gas_limit = 112000; //This should be refunded by the smart contract balance
-                    amount = 0;
-                }
-                else if (txtype == 3)
-                {
-                    //Gas used to refund from contract is around 40,641 units
-                    //Refunding from atomic swap smart contract
-                    wei_gas_limit = 45000;
-                    amount = 0;
-                }
-                else if (txtype == 0)
-                {
-                    //We will calculate the predicted gas used in case sending to a contract
-                    //API will return units of gas that transaction may use
-                    BigInteger suggested_gas_limit = CalculateBlockchainEthereumTransactionGas(my_address, to_address);
-                    if (suggested_gas_limit > wei_gas_limit)
+                    if (txtype == 1)
                     {
-                        wei_gas_limit = suggested_gas_limit; //Modify our default gas limit for the transer
+                        //Gas used to deposit into contract is around 154,509 units
+                        //Sending to atomic swap smart contract, need more gas
+                        wei_gas_limit = 160000;
+                        wei_gas_limit_extra = 112000; //We will send extra ether into contract to cover eventual transfer out
                     }
+                    else if (txtype == 2)
+                    {
+                        //Gas used to redeem from contract is around 107,505        
+                        //Redeeming from atomic swap smart contract
+                        wei_gas_limit = 112000; //This should be refunded by the smart contract balance
+                        amount = 0;
+                    }
+                    else if (txtype == 3)
+                    {
+                        //Gas used to refund from contract is around 40,641 units
+                        //Refunding from atomic swap smart contract
+                        wei_gas_limit = 45000;
+                        amount = 0;
+                    }
+                    else if (txtype == 0)
+                    {
+                        //We will calculate the predicted gas used in case sending to a contract
+                        //API will return units of gas that transaction may use
+                        BigInteger suggested_gas_limit = CalculateBlockchainEthereumTransactionGas(my_address, to_address);
+                        if (suggested_gas_limit > wei_gas_limit)
+                        {
+                            wei_gas_limit = suggested_gas_limit; //Modify our default gas limit for the transer
+                        }
+                    }
+                }
+                else
+                {
+                    //Rules are different when sending tokens, both users will need the sufficient ETH to move around                   
+                    //And there is no reimbursement
+                    if (txtype == 0)
+                    {
+                        //This is a straight ERC20 transfer to another address
+                        wei_gas_limit = 21000 * 4; //84,000 to cover most cases
+                    }
+                    else if (txtype == 1)
+                    {
+                        //Gas used to deposit into contract is around 242,248 units (REP testnet)
+                        //Sending to atomic swap smart contract, need more gas
+                        wei_gas_limit = 160000 * 2; //ERC20 tokens require more gas
+                    }
+                    else if (txtype == 2)
+                    {
+                        //Gas used to redeem from contract is around 137,702 units (REP testnet)
+                        //Redeeming from atomic swap smart contract
+                        wei_gas_limit = 112000 * 2; //This should be refunded by the smart contract balance
+                    }
+                    else if (txtype == 3)
+                    {
+                        //Gas used to refund from contract varies significantly (REP testnet)
+                        //Refunding from atomic swap smart contract
+                        wei_gas_limit = 112000 * 2;
+                    }
+                    else if (txtype == 4)
+                    {
+                        //Approval transaction (can vary based on chain but only 50,000 required for REP testnet)
+                        wei_gas_limit = 21000 * 4;
+                    }
+                    amount = 0; //The token amount is encoded in the data field
+                    change = GetWalletAmount(17); //Change now represents the ETH amount since its used for gas
                 }
 
                 //Multiply the gas_limit * gas_price to get amount of ether used for gas for this transaction
@@ -953,7 +1002,7 @@ namespace NebliDex_Linux
                     }
 
                     //Change the network
-                    ChangeVersionByte(ether_wallet, ref my_net);
+                    ChangeVersionByte(wallet, ref my_net);
                     priv_key = ExtKey.Parse(my_extended_private_key_string, my_net);
                 }
                 Nethereum.Signer.EthECKey ethkey = new Nethereum.Signer.EthECKey(priv_key.PrivateKey.ToBytes(), true);
@@ -1081,12 +1130,16 @@ namespace NebliDex_Linux
             return ConvertToEther(swap_value.Value);
         }
 
-        public static string GetEthereumAtomicSwapSecret(string secrethash_hex)
+		public static string GetEthereumAtomicSwapSecret(string secrethash_hex, bool erc20)
         {
             //We will use the secrethash_hex as an index to recover the secret hex
             //This will return the secret when the trader has redeemed from the contract
 
             string contract_to_call = ETH_ATOMICSWAP_ADDRESS;
+			if (erc20 == true)
+            {
+                contract_to_call = ERC20_ATOMICSWAP_ADDRESS;
+            }
             string function_to_call = "checkSecretKey(bytes32)";
             string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
                                                                                          //Now encode the data for the call
@@ -1175,6 +1228,277 @@ namespace NebliDex_Linux
             return function_selector + encoded_data;
         }
 
+		//ERC20 methods
+        public static decimal GetERC20Balance(string my_address, int wallet)
+        {
+            //Send an ETH call to the token contract to pull the balance at the token contract
+            string tok_contract = GetWalletERC20TokenContract(wallet);
+            if (tok_contract.Length == 0) { return 0; } //No token contract, no balance
+            string function_to_call = "balanceOf(address)"; //ERC20 check balance standard
+            string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
+                                                                                         //Now encode the data for the call
+            JArray data_array = new JArray();
+            JObject data = new JObject();
+            data["data_type"] = "address";
+            data["data_hex"] = my_address.Substring(2);
+            data_array.Add(data);
+            string encoded_data = GenerateEthereumDataParams(data_array);
+            string data_string = "0x" + function_selector + encoded_data;
+            string result = GetBlockchainEthereumContractResult(tok_contract, data_string);
+            if (result.Length == 0)
+            {
+                return 0; //Contract execution error, cannot verify result
+            }
+            //Now we need to decode the result
+            //No complicated fields like bytes or arrays, so can split string
+            //Returns (uint256 balance)
+            result = result.Substring(2); //Remove the 0x
+            string wei_value_hex = result.Substring(0, 64);
+            Nethereum.Hex.HexTypes.HexBigInteger swap_value = new Nethereum.Hex.HexTypes.HexBigInteger(wei_value_hex);
+            //Now based on the token amount of decimals, convert to whole tokens
+            if (swap_value.Value == 0) { return 0; }
+            return ConvertToERC20Decimal(swap_value.Value, GetWalletERC20TokenDecimals(wallet));
+        }
+
+        public static decimal GetERC20AtomicSwapAllowance(string my_address, string contract_address, int wallet)
+        {
+            //This function will verify the allowance is acceptable to send the amount specified to the atomic sawp contract
+            //If allowance is smaller than amount, then suggested to set allowance as 1 million tokens or amount if greater
+
+            //Send an ETH call to the token contract to pull the balance at the token contract
+            string tok_contract = GetWalletERC20TokenContract(wallet);
+            if (tok_contract.Length == 0) { return -1; } //No token contract, no balance
+            string function_to_call = "allowance(address,address)"; //ERC20 check allowance
+            string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
+                                                                                         //Now encode the data for the call
+            JArray data_array = new JArray();
+            JObject data = new JObject();
+            data["data_type"] = "address";
+            data["data_hex"] = my_address.Substring(2);
+            data_array.Add(data);
+            data = new JObject();
+            data["data_type"] = "address";
+            data["data_hex"] = contract_address.Substring(2);
+            data_array.Add(data);
+            string encoded_data = GenerateEthereumDataParams(data_array);
+            string data_string = "0x" + function_selector + encoded_data;
+            string result = GetBlockchainEthereumContractResult(tok_contract, data_string);
+            if (result.Length == 0)
+            {
+                return -1; //Contract execution error, cannot verify result
+            }
+            //Now we need to decode the result
+            //No complicated fields like bytes or arrays, so can split string
+            //Returns (uint256 allowance)
+            result = result.Substring(2); //Remove the 0x
+            string wei_value_hex = result.Substring(0, 64);
+            Nethereum.Hex.HexTypes.HexBigInteger swap_value = new Nethereum.Hex.HexTypes.HexBigInteger(wei_value_hex);
+            //Now based on the token amount of decimals, convert to whole tokens
+            if (swap_value.Value == 0) { return 0; }
+            return ConvertToERC20Decimal(swap_value.Value, GetWalletERC20TokenDecimals(wallet));
+        }
+
+        public static string GenerateEthereumERC20TransferData(string to_address, BigInteger intamount)
+        {
+            //This function returns data to transfer token around
+            string function_to_call = "transfer(address,uint256)";
+            string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
+                                                                                         //Now encode the data for the call
+            JArray data_array = new JArray();
+            JObject data = new JObject();
+            data["data_type"] = "address";
+            data["data_hex"] = to_address.Substring(2);
+            data_array.Add(data);
+            data = new JObject();
+            data["data_type"] = "uint256";
+            Nethereum.Hex.HexTypes.HexBigInteger hex_intamount = new Nethereum.Hex.HexTypes.HexBigInteger(intamount);
+            data["data_hex"] = hex_intamount.HexValue.Substring(2); //Omit the 0x
+            data_array.Add(data);
+            string encoded_data = GenerateEthereumDataParams(data_array);
+
+            return function_selector + encoded_data;
+        }
+
+        public static string GenerateEthereumERC20ApproveData(string to_address, BigInteger intamount)
+        {
+            //This function returns data to approve a certain amount for the transferfrom call
+            string function_to_call = "approve(address,uint256)";
+            string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
+                                                                                         //Now encode the data for the call
+            JArray data_array = new JArray();
+            JObject data = new JObject();
+            data["data_type"] = "address";
+            data["data_hex"] = to_address.Substring(2);
+            data_array.Add(data);
+            data = new JObject();
+            data["data_type"] = "uint256";
+            Nethereum.Hex.HexTypes.HexBigInteger hex_intamount = new Nethereum.Hex.HexTypes.HexBigInteger(intamount);
+            data["data_hex"] = hex_intamount.HexValue.Substring(2); //Omit the 0x
+            data_array.Add(data);
+            string encoded_data = GenerateEthereumDataParams(data_array);
+
+            return function_selector + encoded_data;
+        }
+
+        public static void CreateAndBroadcastERC20Approval(int wallet, decimal amount, string contract_add)
+        {
+            //This method will create a transaction to the ERC20 contract for approval to spend
+            string tok_contract = GetWalletERC20TokenContract(wallet);
+            if (tok_contract.Length == 0) { return; } //No token contract, can't verify
+            BigInteger intamount = ConvertToERC20Int(amount, GetWalletERC20TokenDecimals(wallet));
+            string approve_data = App.GenerateEthereumERC20ApproveData(contract_add, intamount);
+            Nethereum.Signer.TransactionChainId tx = CreateSignedEthereumTransaction(wallet, tok_contract, 0, false, 4, approve_data); //Not actually sending anything
+            if (tx != null)
+            {
+                //Broadcast this transaction, and write to log regardless of whether it returns a hash or not
+                //Now write to the transaction log
+                bool timeout;
+                TransactionBroadcast(wallet, tx.Signed_Hex, out timeout);
+                if (timeout == false)
+                {
+                    UpdateWalletStatus(wallet, 2); //Set to wait
+                    AddMyTxToDatabase(tx.HashID, GetWalletAddress(wallet), tok_contract, 0, wallet, 2, -1);
+                }
+                else
+                {
+                    NebliDexNetLog("Transaction broadcast timed out, not connected to internet");
+                }
+            }
+        }
+
+        public static string GenerateERC20AtomicSwapOpenData(string secrethash_hex, BigInteger intamount, string erc20_contract, string to_address, long timelock)
+        {
+            //This function returns the data used to open an atomic swap from the ethereum smart contract           
+            string function_to_call = "open(bytes32,uint256,address,address,uint256)";
+            string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
+                                                                                         //Now encode the data for the call
+            JArray data_array = new JArray();
+            JObject data = new JObject();
+            data["data_type"] = "bytes32";
+            data["data_hex"] = secrethash_hex;
+            data_array.Add(data);
+            data = new JObject();
+            data["data_type"] = "uint256";
+            Nethereum.Hex.HexTypes.HexBigInteger hex_intamount = new Nethereum.Hex.HexTypes.HexBigInteger(intamount);
+            data["data_hex"] = hex_intamount.HexValue.Substring(2); //Omit the 0x
+            data_array.Add(data);
+            data = new JObject();
+            data["data_type"] = "address";
+            data["data_hex"] = erc20_contract.Substring(2);
+            data_array.Add(data);
+            data = new JObject();
+            data["data_type"] = "address";
+            data["data_hex"] = to_address.Substring(2);
+            data_array.Add(data);
+            data = new JObject();
+            data["data_type"] = "uint256";
+            //Convert the long to hexidecimal bigendian
+            BigInteger timelock_bigint = (BigInteger)timelock;
+            Nethereum.Hex.HexTypes.HexBigInteger swap_timelock = new Nethereum.Hex.HexTypes.HexBigInteger(timelock_bigint);
+            data["data_hex"] = swap_timelock.HexValue.Substring(2); //Omit the 0x
+            data_array.Add(data);
+            string encoded_data = GenerateEthereumDataParams(data_array);
+
+            return function_selector + encoded_data;
+        }
+
+        public static decimal GetERC20AtomicSwapBalance(string secrethash_hex, int wallet)
+        {
+            //We will use the secrethash_hex as an index to recover the balance
+            string contract_to_call = ERC20_ATOMICSWAP_ADDRESS;
+            string function_to_call = "check(bytes32)";
+            string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
+                                                                                         //Now encode the data for the call
+            JArray data_array = new JArray();
+            JObject data = new JObject();
+            data["data_type"] = "bytes32";
+            data["data_hex"] = secrethash_hex;
+            data_array.Add(data);
+            string encoded_data = GenerateEthereumDataParams(data_array);
+            string data_string = "0x" + function_selector + encoded_data;
+            string result = GetBlockchainEthereumContractResult(contract_to_call, data_string);
+            if (result.Length == 0)
+            {
+                return 0; //Contract execution error, cannot verify result
+            }
+            //Now we need to decode the result
+            //No complicated fields like bytes or arrays, so can split string
+            //Returns (uint256 timelock, uint256 erc20Value, address erc20ContractAddress, address withdrawTrader, bytes32 secretLock)
+            result = result.Substring(2); //Remove the 0x
+            string int_value_hex = result.Substring(64, 64);
+            Nethereum.Hex.HexTypes.HexBigInteger swap_value = new Nethereum.Hex.HexTypes.HexBigInteger(int_value_hex);
+            return ConvertToERC20Decimal(swap_value.Value, GetWalletERC20TokenDecimals(wallet));
+        }
+
+        public static bool VerifyERC20AtomicSwap(string secrethash_hex, decimal expected_balance, string my_address, int unlocktime_int, int wallet)
+        {
+            //We will use the secrethash_hex as an index to recover the expected balance, the redeemer address and the unlocktime_int
+            string tok_contract = GetWalletERC20TokenContract(wallet);
+            if (tok_contract.Length == 0) { return false; } //No token contract, can't verify
+            BigInteger unlocktime = new BigInteger(unlocktime_int);
+
+            BigInteger int_expected_balance = ConvertToERC20Int(expected_balance, GetWalletERC20TokenDecimals(wallet));
+            //The balance in the contract must be equal to our exceed this expected balance
+
+            string contract_to_call = ERC20_ATOMICSWAP_ADDRESS;
+            string function_to_call = "check(bytes32)";
+            string function_selector = GetEthereumFunctionSelectorHex(function_to_call); //Will hash and get the four bytes
+                                                                                         //Now encode the data for the call
+            JArray data_array = new JArray();
+            JObject data = new JObject();
+            data["data_type"] = "bytes32";
+            data["data_hex"] = secrethash_hex;
+            data_array.Add(data);
+            string encoded_data = GenerateEthereumDataParams(data_array);
+            string data_string = "0x" + function_selector + encoded_data;
+            string result = GetBlockchainEthereumContractResult(contract_to_call, data_string);
+            if (result.Length == 0)
+            {
+                return false; //Contract execution error, cannot verify result
+            }
+            //Now we need to decode the result
+            //No complicated fields like bytes or arrays, so can split string
+            //Returns (uint256 timelock, uint256 erc20Value, address erc20ContractAddress, address withdrawTrader, bytes32 secretLock)
+            result = result.Substring(2); //Remove the 0x
+            string timelock_hex = result.Substring(0, 64);
+            string int_value_hex = result.Substring(64, 64);
+            string contract_address_hex = result.Substring(64 * 2, 64).ToLower();
+            string address_hex = result.Substring(64 * 3, 64).ToLower();
+            Nethereum.Hex.HexTypes.HexBigInteger swap_timelock = new Nethereum.Hex.HexTypes.HexBigInteger(timelock_hex);
+            Nethereum.Hex.HexTypes.HexBigInteger swap_value = new Nethereum.Hex.HexTypes.HexBigInteger(int_value_hex);
+            tok_contract = tok_contract.Substring(2); //Remove the 0x
+            tok_contract = tok_contract.ToLower().PadLeft(64, '0'); //Used to match the format returned from the call function          
+            my_address = my_address.Substring(2); //Remove the 0x
+            my_address = my_address.ToLower().PadLeft(64, '0'); //Used to match the format returned from the call function
+            if (swap_timelock.Value == 0)
+            {
+                return false; //No balance at the contract yet
+            }
+            if (swap_timelock.Value != unlocktime)
+            {
+                NebliDexNetLog("Swap contract timelock doesn't match what is expected");
+                return false;
+            }
+            if (swap_value.Value < int_expected_balance)
+            {
+                NebliDexNetLog("Swap contract balance doesn't match what is expected");
+                return false;
+            }
+            if (contract_address_hex.Equals(tok_contract) == false)
+            {
+                NebliDexNetLog("Swap token address doesn't match my token address");
+                return false;
+            }
+            if (address_hex.Equals(my_address) == false)
+            {
+                NebliDexNetLog("Swap contract address doesn't match my address");
+                return false;
+            }
+
+            return true;
+        }
+
+        //Helper functions
         public static void GetEthereumBlockchainFee()
         {
             Decimal gas_price = GetBlockchainEthereumGas();
@@ -1192,7 +1516,7 @@ namespace NebliDex_Linux
                 if (WalletList[i].blockchaintype == 6)
                 {
                     //This is an Eth Wallet, get the balance
-                    Decimal bal = GetBlockchainEthereumBalance(WalletList[i].address);
+					Decimal bal = GetBlockchainEthereumBalance(WalletList[i].address, WalletList[i].type);
                     if (bal >= 0)
                     {
                         WalletList[i].balance = TruncateDecimal(bal, 8); //We only want to see up to 8 decimal places
@@ -1201,27 +1525,33 @@ namespace NebliDex_Linux
             }
         }
 
-        public static Decimal GetEtherContractTradeFee()
+		public static Decimal GetEtherContractTradeFee(bool erc20)
         {
             //Takes the Gwei price per gas unit to calculate the trade fee in ether
             //We are sending ethereum to eventual contract, will need at least 272,000 units of gas to cover transfer                       
             decimal gwei = Decimal.Multiply(blockchain_fee[6], 272000m);
+            if (erc20 == true)
+            {
+                gwei = Decimal.Multiply(blockchain_fee[6], 320000m);
+            }
             return ConvertGweiToEther(gwei);
         }
 
-        public static Decimal GetEtherWithdrawalFee()
+        public static Decimal GetEtherWithdrawalFee(bool erc20)
         {
             //Takes the Gwei price per gas unit to calculate the trade fee in ether
             //The fee required to transfer eth between parties (such as withdrawing)                        
             decimal gwei = Decimal.Multiply(blockchain_fee[6], 21000m);
+            if (erc20 == true) { gwei = gwei * 4; }
             return ConvertGweiToEther(gwei);
         }
 
-        public static Decimal GetEtherContractRedeemFee()
+        public static Decimal GetEtherContractRedeemFee(bool erc20)
         {
             //Takes the Gwei price per gas unit to calculate the trade fee in ether
             //The fee required to redeem from the smart contract, all traders of eth need at least this             
             decimal gwei = Decimal.Multiply(blockchain_fee[6], 112000m);
+            if (erc20 == true) { gwei = gwei * 2; }
             return ConvertGweiToEther(gwei);
         }
 
@@ -1234,6 +1564,31 @@ namespace NebliDex_Linux
             dec_remainder = Decimal.Divide(dec_remainder, 1000000000000000000);
             base_eth = Decimal.Add(base_eth, dec_remainder);
             return base_eth;
+        }
+
+        public static Decimal ConvertToERC20Decimal(BigInteger wei, decimal decimal_places)
+        {
+            BigInteger remainder;
+            BigInteger divide_factor = new BigInteger(Math.Pow(10, Convert.ToDouble(decimal_places)));
+            BigInteger whole_erc20_int = BigInteger.DivRem(wei, divide_factor, out remainder);
+            Decimal base_erc20 = (decimal)whole_erc20_int;
+            Decimal dec_remainder = (decimal)remainder;
+            dec_remainder = Decimal.Divide(dec_remainder, (decimal)divide_factor);
+            base_erc20 = Decimal.Add(base_erc20, dec_remainder);
+            return base_erc20;
+        }
+
+        public static BigInteger ConvertToERC20Int(Decimal erc20, decimal decimal_places)
+        {
+            BigInteger multiple_factor = new BigInteger(Math.Pow(10, Convert.ToDouble(decimal_places)));
+            Decimal left_of_decimal = Math.Floor(erc20);
+            Decimal right_of_decimal = erc20 - left_of_decimal;
+            Decimal int_right_of_decimal = Decimal.Multiply(right_of_decimal, (decimal)multiple_factor); //Convert to int
+            BigInteger int_value = new BigInteger(left_of_decimal);
+            BigInteger int_decimal = new BigInteger(int_right_of_decimal);
+            int_value = BigInteger.Multiply(int_value, multiple_factor);
+            int_value = BigInteger.Add(int_value, int_decimal);
+            return int_value;
         }
 
         public static Decimal ConvertGweiToEther(Decimal gwei)

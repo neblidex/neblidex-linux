@@ -35,6 +35,7 @@ namespace NebliDex_Linux
 				App.http_open_network = false;
 				Application.Quit();
 				args.RetVal = false;
+				Environment.Exit(0);
 			}
 			if(waiting != null){
 				//Allow the calling thread to continue

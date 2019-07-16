@@ -159,11 +159,11 @@ namespace NebliDex_Linux
             //Now calculate the totals for ethereum blockchain
             if (trade_wallet_blockchaintype == 6)
             {
-                block_fee1 = App.GetEtherContractTradeFee();
+				block_fee1 = App.GetEtherContractTradeFee(App.Wallet.CoinERC20(App.MarketList[App.exchange_market].trade_wallet));
             }
             if (base_wallet_blockchaintype == 6)
             {
-                block_fee2 = App.GetEtherContractTradeFee();
+				block_fee2 = App.GetEtherContractTradeFee(App.Wallet.CoinERC20(App.MarketList[App.exchange_market].base_wallet));
             }
 
             if (total < block_fee2 || amount < block_fee1)
@@ -171,6 +171,54 @@ namespace NebliDex_Linux
                 //The trade amount is too small
 				App.MessageBox(this, "Notice", "This trade amount is too small to match because it is lower than the blockchain fee.", "OK");
                 return;
+            }
+
+			//ERC20 only check
+            //We need to check if the ERC20 token contract allows us to pull tokens to the atomic swap contract
+            bool sending_erc20 = false;
+            decimal erc20_amount = 0;
+            int erc20_wallet = 0;
+			if (window_order.type == 1 && App.Wallet.CoinERC20(App.MarketList[App.exchange_market].base_wallet) == true)
+            {
+                //Buying trade with ERC20
+                sending_erc20 = true;
+                erc20_amount = total;
+                erc20_wallet = App.MarketList[App.exchange_market].base_wallet;
+            }
+			else if (window_order.type == 0 && App.Wallet.CoinERC20(App.MarketList[App.exchange_market].trade_wallet) == true)
+            {
+                //Selling trade that is also an ERC20
+                sending_erc20 = true;
+                erc20_amount = amount;
+                erc20_wallet = App.MarketList[App.exchange_market].trade_wallet;
+            }
+
+            if (sending_erc20 == true)
+            {
+                //Make sure the allowance is there already
+                decimal allowance = App.GetERC20AtomicSwapAllowance(App.GetWalletAddress(erc20_wallet), App.ERC20_ATOMICSWAP_ADDRESS, erc20_wallet);
+                if (allowance < 0)
+                {
+                    App.MessageBox(this, "Notice", "Error determining ERC20 token contract allowance, please try again.", "OK");
+                    return;
+                }
+                else if (allowance < erc20_amount)
+                {
+                    //We need to increase the allowance to send to the atomic swap contract eventually
+                    bool result = App.PromptUser(this, "Confirmation", "Permission is required from this token's contract to send this amount to the NebliDex atomic swap contract.", "OK", "Cancel");
+                    if (result == true)
+                    {
+                        //Create a transaction with this permission to send up to this amount
+                        allowance = 1000000; //1 million tokens by default
+                        if (erc20_amount > allowance) { allowance = erc20_amount; }
+                        App.CreateAndBroadcastERC20Approval(erc20_wallet, allowance, App.ERC20_ATOMICSWAP_ADDRESS);
+                        Application.Invoke(delegate
+                        {
+                            App.MessageBox(this, "Notice", "Now please wait for your approval to be confirmed by the Ethereum network then try again.", "OK");
+                        });
+                    }
+                    return;
+                }
             }
 
             //Because tokens are indivisible at the moment, amounts can only be in whole numbers
