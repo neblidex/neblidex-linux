@@ -3743,6 +3743,7 @@ namespace NebliDex_Linux
             decimal vn_fee = 0;
             decimal block_fee = 0;
             int sendwallet = 0;
+			int redeemwallet = 0;
             if (type == 0)
             {
                 //We are buying
@@ -3757,6 +3758,7 @@ namespace NebliDex_Linux
                 }
 
                 sendwallet = MarketList[market].base_wallet;
+				redeemwallet = MarketList[market].trade_wallet;
                 int sendwallet_blockchaintype = GetWalletBlockchainType(sendwallet);
                 if (sendwallet_blockchaintype == 0)
                 {
@@ -3787,6 +3789,7 @@ namespace NebliDex_Linux
                 }
 
                 sendwallet = MarketList[market].trade_wallet;
+				redeemwallet = MarketList[market].base_wallet;
                 int sendwallet_blockchaintype = GetWalletBlockchainType(sendwallet);
                 if (sendwallet_blockchaintype == 0)
                 {
@@ -3814,7 +3817,7 @@ namespace NebliDex_Linux
             //This is unique to Ethereum, but both the sender and receiver must have a little ethereum to interact with the ethereum contract
             if (GetWalletBlockchainType(MarketList[market].trade_wallet) == 6 || GetWalletBlockchainType(MarketList[market].base_wallet) == 6)
             {
-				decimal ether_fee = GetEtherContractRedeemFee(Wallet.CoinERC20(sendwallet));
+				decimal ether_fee = GetEtherContractRedeemFee(Wallet.CoinERC20(redeemwallet));
                 if (GetWalletAmount(GetWalletType(6)) < ether_fee)
                 {
                     msg = "Your Ether wallet requires a small amount of Ether (" + String.Format(CultureInfo.InvariantCulture, "{0:0.########}", ether_fee) + " ETH) to interact with the Swap contract.";
