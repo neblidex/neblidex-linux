@@ -14,6 +14,7 @@ namespace NebliDex_Linux
                 base(Gtk.WindowType.Toplevel)
         {
             this.Build();
+			this.Hide();
             //Old height is 335
 			Gtk.Label order_label = (Gtk.Label)Order_Button.Children[0];
 			order_label.Markup = "<span font='14'>Create Order</span>";
@@ -64,6 +65,7 @@ namespace NebliDex_Linux
 				Min_Amount_Header.Markup = "<span font='11'>Minimum Match (" + trade_symbol + "):</span>";
 				Total_Header.Markup = "<span font='11'>Total Receive (" + base_symbol + "):</span>";
             }
+			this.Show();
         }
 
 		private void Price_KeyUp(object sender, EventArgs e)

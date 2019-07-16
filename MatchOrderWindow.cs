@@ -14,6 +14,7 @@ namespace NebliDex_Linux
                 base(Gtk.WindowType.Toplevel)
         {
             this.Build();
+			this.Hide();
             //Old height is 365
 			Gtk.Label match_label = (Gtk.Label)Match_Button.Children[0];
 			match_label.Markup = "<span font='14'>Match</span>";
@@ -61,6 +62,7 @@ namespace NebliDex_Linux
 				Total_Cost_Header.Markup = "<span font='11'>Total Cost (" + base_symbol + "):</span>";
 				My_Balance.Markup = "<span font='11'><b>"+String.Format(CultureInfo.InvariantCulture, "{0:0.########}", my_balance) + " " + base_symbol+"</b></span>";
             }
+			this.Show();
         }
 
 		private void Amount_KeyUp(object sender, EventArgs e)

@@ -15,6 +15,7 @@ namespace NebliDex_Linux
                 base(Gtk.WindowType.Toplevel)
         {
             this.Build();
+			this.Show();
             //Old Window height is 340
 			Gtk.Label withdraw_label = (Gtk.Label)Withdraw_Button.Children[0];
             withdraw_label.Markup = "<span font='14'>Withdraw</span>";
@@ -35,7 +36,8 @@ namespace NebliDex_Linux
 			Coin_Box.Changed += Change_Coin;
 
 			Balance_Amount.Markup = "<span font='14'><b>"+String.Format(CultureInfo.InvariantCulture, "{0:0.########}", balance) + " NEBL</b></span>";
-        }
+			this.Show();
+		}
 
 		private async void Confirm_Withdraw_Firststep(object sender, EventArgs e)
         {
