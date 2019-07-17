@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Threading;
@@ -14,6 +15,7 @@ namespace NebliDex_Linux
                 base(Gtk.WindowType.Toplevel)
         {
             this.Build();
+			this.Show();
             //Old Window height is 340
 			Gtk.Label withdraw_label = (Gtk.Label)Withdraw_Button.Children[0];
             withdraw_label.Markup = "<span font='14'>Withdraw</span>";
@@ -34,7 +36,8 @@ namespace NebliDex_Linux
 			Coin_Box.Changed += Change_Coin;
 
 			Balance_Amount.Markup = "<span font='14'><b>"+String.Format(CultureInfo.InvariantCulture, "{0:0.########}", balance) + " NEBL</b></span>";
-        }
+			this.Show();
+		}
 
 		private async void Confirm_Withdraw_Firststep(object sender, EventArgs e)
         {
@@ -137,9 +140,10 @@ namespace NebliDex_Linux
                 else
                 {
                     //Ethereum
-                    if (amount <= App.GetEtherWithdrawalFee())
+					decimal eth_bal = App.GetWalletAmount(17);
+                    if (eth_bal <= App.GetEtherWithdrawalFee(App.Wallet.CoinERC20(mywallet)))
                     {
-						App.MessageBox(this, "Notice", "This amount is too small to send as it is lower than the gas fee", "OK");
+						App.MessageBox(this, "Notice", "Your ETH balance is too small as it is lower than the gas fee to send this amount", "OK");
                         return;
                     }
                 }
@@ -228,7 +232,20 @@ namespace NebliDex_Linux
             {
                 //This is Ethereum transaction out
                 //This function will estimate the gas used if sending to a contract
-                Nethereum.Signer.TransactionChainId tx = App.CreateSignedEthereumTransaction(des, amount, false, 0, "");
+				Nethereum.Signer.TransactionChainId tx = null;
+                if (App.Wallet.CoinERC20(wallet) == true)
+                {
+                    //ERC20 tokens only move amounts around at a specific contract, tokens are stored in the contract but allocated to the address
+                    string token_contract = App.GetWalletERC20TokenContract(wallet);
+                    BigInteger int_amount = App.ConvertToERC20Int(amount, App.GetWalletERC20TokenDecimals(wallet));
+                    string transfer_data = App.GenerateEthereumERC20TransferData(des, int_amount);
+                    tx = App.CreateSignedEthereumTransaction(wallet, token_contract, amount, false, 0, transfer_data);
+                }
+                else
+                {
+                    //This function will estimate the gas used if sending to a contract
+                    tx = App.CreateSignedEthereumTransaction(wallet, des, amount, false, 0, "");
+                }
                 //Then add to database
                 if (tx != null)
                 {

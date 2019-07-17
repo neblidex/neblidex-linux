@@ -210,6 +210,7 @@ namespace NebliDex_Linux
                 EthereumApiNodeList.Add(new EthereumApiNode("https://cloudflare-eth.com", 2, false));
                 //Does not use BlockCypher anymore due to rate limits and API key requirements
                 ETH_ATOMICSWAP_ADDRESS = "0xcFd9C086635cee0357729da68810A747B6bC674A"; //The address to the Atomic Swap Contract on Ethereum blockchain
+				ERC20_ATOMICSWAP_ADDRESS = "0x1784e5AeC9AD99445663DBCA9462a618BfE545Ac";
 
             }
             else
@@ -244,6 +245,7 @@ namespace NebliDex_Linux
                 //Add the Ethereum testnet API Nodes
                 EthereumApiNodeList.Add(new EthereumApiNode("https://api-rinkeby.etherscan.io/api", 0, true)); //Using Rinkeby testnet
                 ETH_ATOMICSWAP_ADDRESS = "0xcfd9c086635cee0357729da68810a747b6bc674a"; 
+				ERC20_ATOMICSWAP_ADDRESS = "0x80ad941af33b8bB436080652ceaf04213610083D"; //The address to the ERC20 atomic swap contract
 				//The address to the Atomic Swap Contract on Ethereum Rinkeby blockchain
                //MyEtherAPI uses Ropsten testnet, not Rinkeby so don't use for testnet
                //Cloudflare doesn't have testnet connection
@@ -4075,17 +4077,53 @@ namespace NebliDex_Linux
                             //Now calculate the totals for ethereum blockchain
                             if (trade_wallet_blockchaintype == 6)
                             {
-                                block_fee1 = GetEtherContractTradeFee();
+								block_fee1 = GetEtherContractTradeFee(Wallet.CoinERC20(MarketList[exchange_market].trade_wallet));
                             }
                             if (base_wallet_blockchaintype == 6)
                             {
-                                block_fee2 = GetEtherContractTradeFee();
+									block_fee2 = GetEtherContractTradeFee(Wallet.CoinERC20(MarketList[exchange_market].base_wallet));
                             }
 
                             if (total < block_fee2 || MyOpenOrderList[i].amount < block_fee1)
                             {
                                 //Smaller than blockchain fees
                                 remove_order = true;
+                            }
+							                     
+	                        //ERC20 only check
+                            bool sending_erc20 = false;
+                            decimal erc20_amount = 0;
+                            int erc20_wallet = 0;
+                            if (MyOpenOrderList[i].type == 0 && Wallet.CoinERC20(App.MarketList[App.exchange_market].base_wallet) == true)
+                            {
+                                //Buying trade with ERC20
+                                sending_erc20 = true;
+                                erc20_amount = total;
+                                erc20_wallet = MarketList[exchange_market].base_wallet;
+                            }
+                            else if (MyOpenOrderList[i].type == 1 && Wallet.CoinERC20(App.MarketList[App.exchange_market].trade_wallet) == true)
+                            {
+                                //Selling trade that is also an ERC20
+                                sending_erc20 = true;
+                                erc20_amount = MyOpenOrderList[i].amount;
+                                erc20_wallet = MarketList[exchange_market].trade_wallet;
+                            }
+
+                            if (sending_erc20 == true)
+                            {
+                                //Make sure the allowance is there already
+                                decimal allowance = App.GetERC20AtomicSwapAllowance(App.GetWalletAddress(erc20_wallet), App.ERC20_ATOMICSWAP_ADDRESS, erc20_wallet);
+                                if (allowance < 0)
+                                {
+                                    NebliDexNetLog("Error determining ERC20 contract allowance");
+                                    continue;
+                                }
+                                else if (allowance < erc20_amount)
+                                {
+                                    //We need to increase the allowance to send to the atomic swap contract eventually
+                                    //Since we can't post order, just remove it
+                                    remove_order = true;
+                                }
                             }
 
                             RemoveSavedOrder(MyOpenOrderList[i]); //Remove all the saved orders, will resave them with new nonces
@@ -5467,9 +5505,14 @@ namespace NebliDex_Linux
 
                     //Determine if this is an Ethereum based atomic swap
                     bool sending_eth = false;
+					bool sending_erc20 = false;
                     if (GetWalletBlockchainType(redeemscript_wallet) == 6)
                     {
                         sending_eth = true;
+                        if (Wallet.CoinERC20(redeemscript_wallet) == true)
+                        {
+                            sending_erc20 = true; //We are sending ERC20 token
+                        }
                     }
 
                     //Now create the Smart Contract
@@ -5493,6 +5536,10 @@ namespace NebliDex_Linux
                     else
                     {
                         contract_address = ETH_ATOMICSWAP_ADDRESS;
+						if (sending_erc20 == true)
+                        {
+                            contract_address = ERC20_ATOMICSWAP_ADDRESS; //Sending to the ERC20 contract
+                        }
                     }
                     //We need to send the secret hash and the unlock time to the maker to proceed, along with payment and fee transaction to critical node
 
@@ -5525,8 +5572,19 @@ namespace NebliDex_Linux
                         }
                         else
                         {
-                            string open_data = GenerateEthereumAtomicSwapOpenData(contract_secret_hash, destination_add, contract_unlock_time);
-                            eth_tx = CreateSignedEthereumTransaction(contract_address, sendamount, true, 1, open_data);
+							if (sending_erc20 == false)
+                            {
+                                string open_data = GenerateEthereumAtomicSwapOpenData(contract_secret_hash, destination_add, contract_unlock_time);
+                                eth_tx = CreateSignedEthereumTransaction(redeemscript_wallet, contract_address, sendamount, true, 1, open_data);
+                            }
+                            else
+                            {
+                                //Sending ERC20 to contract, we already have this amount approved via approval transaction
+                                BigInteger int_sendamount = ConvertToERC20Int(sendamount, GetWalletERC20TokenDecimals(redeemscript_wallet));
+                                string token_contract = GetWalletERC20TokenContract(redeemscript_wallet);
+                                string open_data = GenerateERC20AtomicSwapOpenData(contract_secret_hash, int_sendamount, token_contract, destination_add, contract_unlock_time);
+                                eth_tx = CreateSignedEthereumTransaction(redeemscript_wallet, contract_address, sendamount, true, 1, open_data);
+                            }
                         }
                         if (vn_fee > 0)
                         {
@@ -5900,8 +5958,8 @@ namespace NebliDex_Linux
                     //Calculate our inclusion time and subtract from taker unlocktime
                     long maker_inclusion_time = GetBlockInclusionTime(taker_receivewallet, 0); //This will return the extra time to remove because of my inclusion time
                     long adjusted_ctime = taker_unlock_time - max_transaction_wait - maker_inclusion_time; //Subtract 3 hours and maker contract inclusion time
-                    if (Math.Abs(UTCTime() - adjusted_ctime) > 60 * 2)
-                    { //Contract time difference greater than 2 minutes, not allowed
+                    if (Math.Abs(UTCTime() - adjusted_ctime) > 60 * 3)
+                    { //Contract time difference greater than 3 minutes, not allowed
                         NebliDexNetLog("Contract time difference is too great");
                         TraderRejectTrade(dex, order_nonce, reqtime, true); //Send message to cancel trade
                         nStream.Close();
@@ -5931,6 +5989,11 @@ namespace NebliDex_Linux
                     {
                         //The taker is sending Ethereum to the smart contract address
                         taker_contract_address = ETH_ATOMICSWAP_ADDRESS;
+						if (Wallet.CoinERC20(maker_receivewallet) == true)
+                        {
+                            //We are receiving ERC20, make sure the taker contract matches
+                            taker_contract_address = ERC20_ATOMICSWAP_ADDRESS;
+                        }
                         if (taker_contract_address.Equals(prelim_taker_contract_add) == false)
                         {
                             //Make sure taker has the same contract address as we do
@@ -5948,9 +6011,12 @@ namespace NebliDex_Linux
 
                     //Determine if we are sending an enthereum smart contract
                     bool sending_eth = false;
-                    if (GetWalletBlockchainType(taker_receivewallet) == 6)
-                    {
+					bool sending_erc20 = false;
+                    if(GetWalletBlockchainType(taker_receivewallet) == 6){
                         sending_eth = true;
+                        if(Wallet.CoinERC20(taker_receivewallet) == true){
+                            sending_erc20 = true;
+                        }
                     }
 
                     long contract_unlock_time = adjusted_ctime + max_transaction_wait / 2; //1.5 hours the contract will expire 
@@ -5967,6 +6033,10 @@ namespace NebliDex_Linux
                     else
                     {
                         contract_address = ETH_ATOMICSWAP_ADDRESS;
+						if (sending_erc20 == true)
+                        {
+                            contract_address = ERC20_ATOMICSWAP_ADDRESS;
+                        }
                     }
 
                     //Bitcoin public/private keypair not suitable for encryption, must use RSA encryption for keys
@@ -6193,7 +6263,13 @@ namespace NebliDex_Linux
             else
             {
                 //We are receiving Ethereum from the smart contract, will wait for a balance
-                if (prelim_maker_contract_add.Equals(ETH_ATOMICSWAP_ADDRESS) == false)
+				string expected_contract = ETH_ATOMICSWAP_ADDRESS;
+                if (Wallet.CoinERC20(taker_receivewallet) == true)
+                {
+                    //We are receiving ERC20
+                    expected_contract = ERC20_ATOMICSWAP_ADDRESS;
+                }
+                if (prelim_maker_contract_add.Equals(expected_contract) == false)
                 {
                     NebliDexNetLog("Maker ethereum contract address doesn't match expected");
                     trade_ok = false;
@@ -6311,6 +6387,8 @@ namespace NebliDex_Linux
                 case "CN Rejected: Client IP must match sending IP":
                     return true;
                 case "Order Request Denied: You do not have enough balance to match this order in the Ethereum contract":
+                    return true;
+				case "Order Request Denied: You have not authorized enough allowance to complete this trade":
                     return true;
                 default:
                     return false;

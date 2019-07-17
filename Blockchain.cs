@@ -1844,9 +1844,18 @@ namespace NebliDex_Linux
                             else
                             {
                                 //We will check the Ethereum contract for a balance
-								NebliDexNetLog("Waiting for maker to pay ethereum contract");
-                                string secret_hash = table.Rows[i]["atomic_secret_hash"].ToString();
-                                balance_ok = VerifyBlockchainEthereumAtomicSwap(secret_hash, expected_balance, GetWalletAddress(maker_cointype), canceltime);
+								string secret_hash = table.Rows[i]["atomic_secret_hash"].ToString();
+								if (Wallet.CoinERC20(maker_cointype) == false)
+                                {
+                                    NebliDexNetLog("Waiting for maker to pay Ethereum contract");
+                                    balance_ok = VerifyBlockchainEthereumAtomicSwap(secret_hash, expected_balance, GetWalletAddress(maker_cointype), canceltime);
+                                }
+                                else
+                                {
+                                    //This is an ERC20 token
+                                    NebliDexNetLog("Waiting for maker to pay ERC20 contract");
+                                    balance_ok = VerifyERC20AtomicSwap(secret_hash, expected_balance, GetWalletAddress(maker_cointype), canceltime, maker_cointype);
+                                }
                                 receiving_eth = true;
                             }
 
@@ -1877,7 +1886,12 @@ namespace NebliDex_Linux
                                     //Redeeming from the maker's ethereum contract
                                     string secret_hash = table.Rows[i]["atomic_secret_hash"].ToString();
                                     string redeem_data = GenerateEthereumAtomicSwapRedeemData(secret_hash, secret);
-                                    eth_tx = CreateSignedEthereumTransaction(ETH_ATOMICSWAP_ADDRESS, 0, false, 2, redeem_data);
+									string eth_contract = ETH_ATOMICSWAP_ADDRESS;
+                                    if (Wallet.CoinERC20(maker_cointype) == true)
+                                    {
+                                        eth_contract = ERC20_ATOMICSWAP_ADDRESS;
+                                    }
+                                    eth_tx = CreateSignedEthereumTransaction(maker_cointype, eth_contract, 0, false, 2, redeem_data);
                                 }
                                 if (tx != null || eth_tx != null)
                                 {
@@ -1988,7 +2002,14 @@ namespace NebliDex_Linux
                                 string secret_hash = table.Rows[i]["atomic_secret_hash"].ToString();
                                 int maker_inclusion_time = Convert.ToInt32(GetBlockInclusionTime(cointype, 0)); //The time for my contract to use CLTV
                                 int taker_canceltime = canceltime + max_transaction_wait / 2 + maker_inclusion_time; //This will be the taker's locktime
-                                balance_ok = VerifyBlockchainEthereumAtomicSwap(secret_hash, expected_balance, GetWalletAddress(taker_cointype), taker_canceltime);
+								if (Wallet.CoinERC20(taker_cointype) == false)
+                                {
+                                    balance_ok = VerifyBlockchainEthereumAtomicSwap(secret_hash, expected_balance, GetWalletAddress(taker_cointype), taker_canceltime);
+                                }
+                                else
+                                {
+                                    balance_ok = VerifyERC20AtomicSwap(secret_hash, expected_balance, GetWalletAddress(taker_cointype), taker_canceltime, taker_cointype);
+                                }
                             }
 
                             myquery = "Update MYTRANSACTIONS Set waittime = @time Where nindex = @index;";
@@ -2049,8 +2070,19 @@ namespace NebliDex_Linux
                                 {
                                     //We are sending ethereum into the contract
                                     string secret_hash = table.Rows[i]["atomic_secret_hash"].ToString();
-                                    string open_data = GenerateEthereumAtomicSwapOpenData(secret_hash, destination_add, canceltime); //With our parameters
-                                    eth_tx = CreateSignedEthereumTransaction(ETH_ATOMICSWAP_ADDRESS, sendamount, true, 1, open_data);
+									if (Wallet.CoinERC20(cointype) == false)
+                                    {
+                                        string open_data = GenerateEthereumAtomicSwapOpenData(secret_hash, destination_add, canceltime); //With our parameters
+                                        eth_tx = CreateSignedEthereumTransaction(cointype, ETH_ATOMICSWAP_ADDRESS, sendamount, true, 1, open_data);
+                                    }
+                                    else
+                                    {
+                                        //Sending ERC20 to contract, we already have this amount approved via approval transaction
+                                        BigInteger int_sendamount = ConvertToERC20Int(sendamount, GetWalletERC20TokenDecimals(cointype));
+                                        string token_contract = GetWalletERC20TokenContract(cointype);
+                                        string open_data = GenerateERC20AtomicSwapOpenData(secret_hash, int_sendamount, token_contract, destination_add, canceltime);
+                                        eth_tx = CreateSignedEthereumTransaction(cointype, ERC20_ATOMICSWAP_ADDRESS, sendamount, true, 1, open_data);
+                                    }
                                 }
                                 if (tx != null || eth_tx != null)
                                 {
@@ -2110,6 +2142,10 @@ namespace NebliDex_Linux
                             if (GetWalletBlockchainType(cointype) == 6)
                             {
                                 maker_contract_add = ETH_ATOMICSWAP_ADDRESS; //This is the location of the maker's contract
+								if (Wallet.CoinERC20(cointype) == true)
+                                {
+                                    maker_contract_add = ERC20_ATOMICSWAP_ADDRESS; //This is location of maker's contract
+                                }
                             }
                             string maker_txhash = table.Rows[i]["txhash"].ToString();
                             int conf = TransactionConfirmations(cointype, maker_txhash);
@@ -2147,7 +2183,7 @@ namespace NebliDex_Linux
                                         {
                                             //Refund from ethereum contract using just secret_hash
                                             string refund_data = GenerateEthereumAtomicSwapRefundData(secret_hash);
-                                            eth_tx = CreateSignedEthereumTransaction(maker_contract_add, 0, true, 3, refund_data);
+											eth_tx = CreateSignedEthereumTransaction(cointype, maker_contract_add, 0, true, 3, refund_data);
                                         }
                                         if (tx != null || eth_tx != null)
                                         {
@@ -2223,7 +2259,7 @@ namespace NebliDex_Linux
                                     {
                                         //All we need is the secret and the secret hash
                                         string redeem_data = GenerateEthereumAtomicSwapRedeemData(secret_hash, secret);
-                                        eth_tx = CreateSignedEthereumTransaction(taker_contract_add, 0, true, 2, redeem_data);
+										eth_tx = CreateSignedEthereumTransaction(taker_cointype, taker_contract_add, 0, true, 2, redeem_data);
                                     }
                                     if (tx != null || eth_tx != null)
                                     {
@@ -2331,7 +2367,14 @@ namespace NebliDex_Linux
                                 else
                                 {
                                     string secret_hash = table.Rows[i]["atomic_secret_hash"].ToString();
-                                    balance = GetBlockchainEthereumAtomicSwapBalance(secret_hash);
+									if (Wallet.CoinERC20(cointype) == false)
+                                    {
+                                        balance = GetBlockchainEthereumAtomicSwapBalance(secret_hash);
+                                    }
+                                    else
+                                    {
+                                        balance = GetERC20AtomicSwapBalance(secret_hash, cointype);
+                                    }
                                 }
                                 if (balance > 0)
                                 {
@@ -2348,7 +2391,7 @@ namespace NebliDex_Linux
                                     {
                                         string secret_hash = table.Rows[i]["atomic_secret_hash"].ToString();
                                         string refund_data = GenerateEthereumAtomicSwapRefundData(secret_hash);
-                                        eth_tx = CreateSignedEthereumTransaction(taker_contract_add, 0, true, 3, refund_data);
+										eth_tx = CreateSignedEthereumTransaction(cointype, taker_contract_add, 0, true, 3, refund_data);
                                     }
                                     if (tx != null || eth_tx != null)
                                     {
@@ -2577,7 +2620,14 @@ namespace NebliDex_Linux
                         {
                             //Check the balance of the ethereum contract using the taker secret hash
                             checking_eth = true;
-                            contract_balance = GetBlockchainEthereumAtomicSwapBalance(redeem_add);
+							if (Wallet.CoinERC20(redeemwallet) == false)
+                            {
+                                contract_balance = GetBlockchainEthereumAtomicSwapBalance(redeem_add);
+                            }
+                            else
+                            {
+                                contract_balance = GetERC20AtomicSwapBalance(redeem_add, redeemwallet);
+                            }
                         }
                         //Default update
                         myquery = "Update VALIDATING_TRANSACTIONS Set waittime = @time Where nindex = @index;";
@@ -2608,7 +2658,7 @@ namespace NebliDex_Linux
                             if (checking_eth == true)
                             {
                                 //Continuously try to grab the secret from contract, once it is visible, the contract has paid to maker
-                                string secret = GetEthereumAtomicSwapSecret(redeem_add);
+								string secret = GetEthereumAtomicSwapSecret(redeem_add, Wallet.CoinERC20(redeemwallet));
                                 if (secret.Length > 0)
                                 {
                                     contract_balance = 0; //Secret was revealed so no balance is possibly there
@@ -3225,7 +3275,7 @@ namespace NebliDex_Linux
                 if (connectiontype == 6)
                 {
                     //This is an ethereum transaction
-                    return GetBlockchainEthereumBalance(address);
+					return GetBlockchainEthereumBalance(address, cointype);
                 }
                 DexConnection dex = null;
 
@@ -4819,7 +4869,7 @@ namespace NebliDex_Linux
                 if (connectiontype == 6)
                 {
                     //Ethereum has its own method to grab the secret
-                    return GetEthereumAtomicSwapSecret(secrethash_hex);
+					return GetEthereumAtomicSwapSecret(secrethash_hex, Wallet.CoinERC20(cointype));
                 }
 
                 DexConnection dex = null;

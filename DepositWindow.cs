@@ -7,6 +7,7 @@ namespace NebliDex_Linux
                 base(Gtk.WindowType.Toplevel)
         {
             this.Build();
+			this.Hide();
             //Old height was 250
 			Gtk.Label close_label = (Gtk.Label)Close_Button.Children[0];
             close_label.Markup = "<span font='14'>Close</span>";
@@ -27,6 +28,7 @@ namespace NebliDex_Linux
 			Coin_Box.Changed += Change_Coin;
 
             Deposit_Address.Text = addre;
+			this.Show();
         }
 
 		private void Close_Dialog(object sender, EventArgs e)
