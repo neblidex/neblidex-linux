@@ -3481,6 +3481,16 @@ namespace NebliDex_Linux
                     return null;
                 }
 
+				//Now send the taker transaction
+                bool timeout2;
+                string txid2 = TransactionBroadcast(taker_sendwallet, taker_tx, out timeout2);
+                if (txid2.Length == 0)
+                {
+                    //Failed to post taker transaction into scripthash
+                    NebliDexNetLog("Taker transation has failed to post");
+                    return null;
+                }
+
                 if (taker_feetx.Length > 0)
                 {
                     bool timeout;
@@ -3492,17 +3502,7 @@ namespace NebliDex_Linux
                         return null;
                     }
                 }
-
-                //Now send the taker transaction
-                bool timeout2;
-                string txid2 = TransactionBroadcast(taker_sendwallet, taker_tx, out timeout2);
-                if (txid2.Length == 0)
-                {
-                    //Failed to post taker transaction into scripthash
-                    NebliDexNetLog("Taker transation has failed to post");
-                    return null;
-                }
-
+            
                 //Taker transaction has posted, now 
                 if (maker_feetx.Length > 0)
                 {
