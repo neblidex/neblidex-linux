@@ -24,7 +24,7 @@ namespace NebliDex_Linux
 		//Mainnet version
 		public static int protocol_version = 7; //My protocol version
 		public static int protocol_min_version = 7; //Minimum accepting protocol version
-		public static string version_text = "v7.0.0";
+		public static string version_text = "v7.0.1";
 		public static bool run_headless = false; //If true, this software is ran in critical node mode without GUI on startup
 		public static bool http_open_network = true; //This becomes false if user closes window
 		public static int sqldatabase_version = 3;
