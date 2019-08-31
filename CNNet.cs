@@ -2311,6 +2311,33 @@ namespace NebliDex_Linux
                 }
             }
 
+			//Also, get the time sync value so we can sync with the Critical Node chart just in case it is different
+            try
+            {
+                string blockdata = "";
+                lock (dex.blockhandle)
+                {
+                    dex.blockhandle.Reset();
+                    SendCNServerAction(dex, 14, "");
+                    dex.blockhandle.WaitOne(5000); //This will wait 5 seconds for a response                                
+                    if (dex.blockdata == "") { return; }
+                    blockdata = dex.blockdata;
+                }
+
+                JObject js = JObject.Parse(blockdata);
+                next_candle_time = Convert.ToInt32(js["cn.candletime"].ToString());
+                if (next_candle_time < UTCTime())
+                {
+                    next_candle_time = 0; //Somehow the times have become out of sync, set it to zero
+                }
+                ChartLastPrice15StartTime = next_candle_time - 60 * 15;
+                candle_15m_interval = Convert.ToInt32(js["cn.15minterval"].ToString());
+            }
+            catch (Exception e)
+            {
+                NebliDexNetLog("Unable to sync clocks with Critical Node: " + e.ToString());
+            }
+
             //We don't need to get 24 hour as system will use recent trade data to calculate volume
 
             //The new CN will not verify each CN balance at once but check random CNs balance occasionally
