@@ -1152,7 +1152,7 @@ namespace NebliDex_Linux
                 if (ok == false)
                 {
                     NebliDexNetLog("Unable to select electrum server for this blockchain");
-                    continue;
+					break;
                 }
                 try
                 {
@@ -3365,23 +3365,29 @@ namespace NebliDex_Linux
             //This function will load the CN list and add ones that haven't already been loaded
             lock (CN_Nodes_By_IP)
             {
-                using (System.IO.StreamReader file =
-                    new System.IO.StreamReader(@App_Path + "/data/cn_list.dat", false))
-                {
-                    DNS_SEED_TYPE = Convert.ToInt32(file.ReadLine());
-                    DNS_SEED = file.ReadLine();
-                    while (file.EndOfStream == false)
-                    {
-                        CriticalNode cn = new CriticalNode();
-                        cn.ip_add = file.ReadLine();
-                        if (cn.ip_add.Length == 0) { break; } //Empty new line
-                        if (CN_Nodes_By_IP.ContainsKey(cn.ip_add) == false)
-                        {
-                            //Only add nodes that don't already exist
-                            CN_Nodes_By_IP.Add(cn.ip_add, cn); //Add this dictionary entry
-                        }
-                    }
-                }
+				try
+				{
+					using (System.IO.StreamReader file =
+						new System.IO.StreamReader(@App_Path + "/data/cn_list.dat", false))
+					{
+						DNS_SEED_TYPE = Convert.ToInt32(file.ReadLine());
+						DNS_SEED = file.ReadLine();
+						while (file.EndOfStream == false)
+						{
+							CriticalNode cn = new CriticalNode();
+							cn.ip_add = file.ReadLine();
+							if (cn.ip_add.Length == 0) { break; } //Empty new line
+							if (CN_Nodes_By_IP.ContainsKey(cn.ip_add) == false)
+							{
+								//Only add nodes that don't already exist
+								CN_Nodes_By_IP.Add(cn.ip_add, cn); //Add this dictionary entry
+							}
+						}
+					}
+				}catch(Exception e){
+					NebliDexNetLog("Failed to load CN List: " + e.ToString());
+                    File.Delete(@App_Path + "/data/cn_list.dat"); //Delete then try to reload again
+				}
             }
         }
 
@@ -3425,6 +3431,7 @@ namespace NebliDex_Linux
                 }
             }
 
+			File.Delete(App_Path + "/data/electrum_peers.dat"); //Unable to find a server to connect to, re-download whole list
             return false;
         }
 
@@ -4770,7 +4777,7 @@ namespace NebliDex_Linux
                     lock (dex.blockhandle)
                     {
                         dex.blockhandle.Reset();
-                        SendCNServerAction(dex, 14, "" + market);
+                        SendCNServerAction(dex, 14, "");
                         dex.blockhandle.WaitOne(5000); //This will wait 5 seconds for a response                                
                         if (dex.blockdata == "") { return; }
                         blockdata = dex.blockdata;
@@ -5116,6 +5123,11 @@ namespace NebliDex_Linux
                         //Connect to electrum servers
                         string[] electrum_info = new string[2];
                         bool ok = SelectRandomElectrum(etype - 1, electrum_info);
+						if (ok == false)
+                        {
+                            //Couldn't find a server
+                            break;
+                        }
                         if (electrum_info[0].Equals(dex.ip_address[0]) == true) { continue; }
                         try
                         {
