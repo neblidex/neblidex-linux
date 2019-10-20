@@ -19,23 +19,20 @@ namespace NebliDex_Linux
             //Old Window height is 340
 			Gtk.Label withdraw_label = (Gtk.Label)Withdraw_Button.Children[0];
             withdraw_label.Markup = "<span font='14'>Withdraw</span>";
-
-			decimal balance = 0;
+            
             for (int i = 0; i < App.WalletList.Count; i++)
             {
                 Coin_Box.AppendText(App.WalletList[i].Coin);
-                if (App.WalletList[i].type == 0)
-                {
-                    balance = App.WalletList[i].balance;
-                }
             }
 			Coin_Box.Active = 0;
+			decimal balance = App.WalletList[0].balance;
+
 			Gtk.CellRendererText my_rend = (Gtk.CellRendererText)Coin_Box.Cells[0];
             my_rend.Scale = 1.4;
 			Withdraw_Button.Clicked += Confirm_Withdraw_Firststep;
 			Coin_Box.Changed += Change_Coin;
 
-			Balance_Amount.Markup = "<span font='14'><b>"+String.Format(CultureInfo.InvariantCulture, "{0:0.########}", balance) + " NEBL</b></span>";
+			Balance_Amount.Markup = "<span font='14'><b>"+String.Format(CultureInfo.InvariantCulture, "{0:0.########}", balance) + " "+App.WalletList[0].Coin+"</b></span>";
 			this.Show();
 		}
 

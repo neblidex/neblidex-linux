@@ -12,17 +12,17 @@ namespace NebliDex_Linux
 			Gtk.Label close_label = (Gtk.Label)Close_Button.Children[0];
             close_label.Markup = "<span font='14'>Close</span>";
 			Close_Button.Clicked += Close_Dialog;
-
-			string addre = "";
+            
             for (int i = 0; i < App.WalletList.Count; i++)
             {
                 Coin_Box.AppendText(App.WalletList[i].Coin);
-                if (App.WalletList[i].type == 0)
-                {
-                    addre = App.WalletList[i].address;
-                }
             }
             Coin_Box.Active = 0;
+			string addre = App.WalletList[0].address;
+			if(App.WalletList[0].blockchaintype == 4){
+				addre = SharpCashAddr.Converter.ToCashAddress(addre);
+			}
+
 			Gtk.CellRendererText my_rend = (Gtk.CellRendererText)Coin_Box.Cells[0];
             my_rend.Scale = 1.4;
 			Coin_Box.Changed += Change_Coin;
