@@ -690,7 +690,12 @@ namespace NebliDex_Linux
                     {
                         return 0; //Transaction not confirmed or not found
                     }
-                    Nethereum.Hex.HexTypes.HexBigInteger tx_blocknum = new Nethereum.Hex.HexTypes.HexBigInteger(js["result"]["blockNumber"].ToString());
+					string txnum = js["result"]["blockNumber"].ToString(); //Block number may be "null" number, converts to empty string
+                    if (txnum.Length == 0)
+                    {
+                        return 0; //Transaction not confirmed or not found
+                    }
+                    Nethereum.Hex.HexTypes.HexBigInteger tx_blocknum = new Nethereum.Hex.HexTypes.HexBigInteger(txnum);
                     //Search the current block number and compare the difference to get the number for confirmations
                     url = api_endpoint + "?module=proxy&action=eth_blockNumber";
                     resp = HttpRequest(url, "", out timeout);
@@ -759,7 +764,12 @@ namespace NebliDex_Linux
                     {
                         return 0; //Transaction not confirmed or not found
                     }
-                    Nethereum.Hex.HexTypes.HexBigInteger tx_blocknum = new Nethereum.Hex.HexTypes.HexBigInteger(js["result"]["blockNumber"].ToString());
+					string txnum = js["result"]["blockNumber"].ToString(); //Block number may be "null" number, converts to empty string
+                    if (txnum.Length == 0)
+                    {
+                        return 0; //Transaction not confirmed or not found
+                    }
+                    Nethereum.Hex.HexTypes.HexBigInteger tx_blocknum = new Nethereum.Hex.HexTypes.HexBigInteger(txnum);
 
                     ETH_CALLS++;
                     if (ETH_CALLS >= long.MaxValue)
