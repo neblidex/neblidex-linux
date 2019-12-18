@@ -334,6 +334,7 @@ namespace NebliDex_Linux
                     js["cn.method"] = "cn.myversion";
                     js["cn.response"] = 0; //This is telling the CN that this is a response
                     js["cn.result"] = protocol_min_version;
+					js["cn.totalmarkets"] = total_markets; // Tell the CN the markets that we have
                     json_encoded = JsonConvert.SerializeObject(js);
                 }
                 else if (action == 4)
@@ -1099,6 +1100,7 @@ namespace NebliDex_Linux
                 js["cn.sig"] = sig;
                 js["cn.version"] = protocol_min_version; //CN will be rejected across network if its min_version lower than CN min_version
                 js["cn.time"] = UTCTime(); //This should be within 15 seconds of the receiving CN
+				js["cn.totalmark"] = total_markets;
 
                 //This method will be rebroadcasted across the network to all CNs but first to the connected CN
                 string blockdata = "";
@@ -1286,6 +1288,7 @@ namespace NebliDex_Linux
             js["cn.sig"] = my_sig;
             js["cn.version"] = protocol_min_version; //CN will be rejected across network if lower than min_version
             js["cn.time"] = UTCTime();
+			js["cn.totalmark"] = total_markets;
 
             //This method will be rebroadcasted across the network to all CNs but first to the connected CN
             string blockdata = "";
@@ -1388,6 +1391,7 @@ namespace NebliDex_Linux
             string ip = js["cn.ip"].ToString();
             string pubkey = js["cn.pubkey"].ToString();
             string sig = js["cn.sig"].ToString();
+			int totalmark = Convert.ToInt32(js["cn.totalmark"].ToString());
 
             int cn_version = Convert.ToInt32(js["cn.version"].ToString());
             if (cn_version < protocol_min_version)
@@ -1520,6 +1524,7 @@ namespace NebliDex_Linux
             node.signature_ip = sig;
             node.strikes = prev_strike;
             node.lastchecked = UTCTime();
+			node.total_markets = totalmark;
 
             lock (CN_Nodes_By_IP)
             {
@@ -1654,6 +1659,7 @@ namespace NebliDex_Linux
                         if (ccount >= 25) { break; }
                         JObject ob = new JObject();
                         ob["cn.ip"] = node.ip_add;
+						ob["cn.totalmarkets"] = node.total_markets;
                         if (cnmode == true)
                         {
                             if (node.signature_ip != null)
@@ -2383,6 +2389,10 @@ namespace NebliDex_Linux
                         {
                             CriticalNode node = new CriticalNode();
                             node.ip_add = row["cn.ip"].ToString();
+							node.total_markets = 0;
+                            if(row["cn.totalmarkets"] != null){ // TODO: Transitional condition
+                                node.total_markets = Convert.ToInt32(row["cn.totalmarkets"].ToString());
+                            }
                             node.ndex = Convert.ToDecimal(row["cn.ndex"].ToString(), CultureInfo.InvariantCulture);
                             node.pubkey = row["cn.pubkey"].ToString();
                             node.strikes = Convert.ToUInt32(row["cn.strikes"].ToString());
@@ -2572,6 +2582,7 @@ namespace NebliDex_Linux
             bool proper = false;
             string maker_ip = "";
             string taker_ip = "";
+			int target_market = 0;
 
             //Find the order request
             lock (OrderRequestList)
@@ -2583,6 +2594,7 @@ namespace NebliDex_Linux
 
                         maker_ip = OrderRequestList[i].ip_address_maker[0]; //These IPs may not match the order request IP if on local network so unreliable
                         taker_ip = OrderRequestList[i].ip_address_taker[0];
+						target_market = OrderRequestList[i].market;
 
                         proper = true;
                     }
@@ -2601,7 +2613,7 @@ namespace NebliDex_Linux
 
             vjs["cn.initiating_cn_ip"] = my_ip; //The IP address of the CN that found the validation node
 
-            if (CN_Nodes_By_IP.Count < 2 || cn_ndex_minimum == 0)
+			if (MarketCNNodeCount(target_market) < 2 || cn_ndex_minimum == 0)
             {
                 //There is only 1 critical node, this cn has to be the validator
                 vjs["cn.validator_ip"] = my_ip;
@@ -2619,7 +2631,7 @@ namespace NebliDex_Linux
             {
                 foreach (CriticalNode cn in CN_Nodes_By_IP.Values)
                 {
-                    if (cn.ip_add.Equals(my_ip) == false && cn.ip_add.Equals(maker_ip) == false && cn.ip_add.Equals(taker_ip) == false)
+					if (cn.ip_add.Equals(my_ip) == false && cn.ip_add.Equals(maker_ip) == false && cn.ip_add.Equals(taker_ip) == false && target_market < cn.total_markets)
                     {
                         total_pts += cn.ndex / cn_ndex_minimum;
                         CN_List.Add(cn);
@@ -2634,7 +2646,7 @@ namespace NebliDex_Linux
                 {
                     foreach (CriticalNode cn in CN_Nodes_By_IP.Values)
                     {
-                        if (cn.ip_add.Equals(my_ip) == false)
+						if (cn.ip_add.Equals(my_ip) == false && target_market < cn.total_markets)
                         {
                             total_pts += cn.ndex / cn_ndex_minimum;
                             CN_List.Add(cn);
@@ -2657,29 +2669,29 @@ namespace NebliDex_Linux
             CriticalNode validator = null;
             while (validator == null)
             {
-
-                decimal end_pt = GetRandomDecimalNumber(0, total_pts);
-                for (int i = 0; i < CN_List.Count; i++)
-                {
-                    if (CN_List[i].ip_add.Equals(my_ip) == false)
-                    {
-                        decimal cn_pts = CN_List[i].ndex / cn_ndex_minimum;
-                        end_pt -= cn_pts;
-                        if (end_pt <= 0)
-                        {
-                            //This is our validating CN (Simple algorithm)
-                            validator = CN_List[i];
-                            break;
-                        }
-                    }
-                }
-
+        
                 if (equal_chance == true)
                 {
 					if (CN_List.Count == 0) { break; } //Must be at least 1 CN
                     int node_num = (int)Math.Round(GetRandomNumber(1, CN_List.Count)) - 1;
                     validator = CN_List[node_num];
-                }
+				}else{
+					decimal end_pt = GetRandomDecimalNumber(0, total_pts);
+                    for (int i = 0; i < CN_List.Count; i++)
+                    {
+                        if (CN_List[i].ip_add.Equals(my_ip) == false)
+                        {
+                            decimal cn_pts = CN_List[i].ndex / cn_ndex_minimum;
+                            end_pt -= cn_pts;
+                            if (end_pt <= 0)
+                            {
+                                //This is our validating CN (Simple algorithm)
+                                validator = CN_List[i];
+                                break;
+                            }
+                        }
+                    }
+				}
 
                 if (validator == null) { break; }
 
@@ -2743,7 +2755,7 @@ namespace NebliDex_Linux
             if (validator == null)
             {
                 //No other node is available
-                if (CN_Nodes_By_IP.Count <= 2)
+				if (MarketCNNodeCount(target_market) <= 2)
                 {
                     //There is only one available critical node
                     vjs["cn.validator_ip"] = my_ip;

@@ -191,7 +191,7 @@ namespace NebliDex_Linux
             if (ord.type != 0 && ord.type != 1) { return false; }
             ord.market = Convert.ToInt32(jord["order.market"].ToString());
             ord.is_request = Convert.ToBoolean(jord["order.is_request"].ToString());
-            if (ord.market < 0 || ord.market >= total_markets) { return false; } //Bad data
+			if (ord.market < 0 || ord.market >= total_markets) { return false; } //Unsupported data
 
             string ip = "";
             string port = "";
