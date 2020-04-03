@@ -24,7 +24,7 @@ namespace NebliDex_Linux
 		//Mainnet version
 		public static int protocol_version = 10; //My protocol version
         public static int protocol_min_version = 10; //Minimum accepting protocol version
-        public static string version_text = "v10.0.0";
+        public static string version_text = "v10.0.1";
 		public static bool run_headless = false; //If true, this software is ran in critical node mode without GUI on startup
 		public static bool http_open_network = true; //This becomes false if user closes window
 		public static int sqldatabase_version = 3;
@@ -38,6 +38,8 @@ namespace NebliDex_Linux
         //Updated DAI contract to new version
         //Fixed ETH confirmation bug
         //Allow for new markets without protocol changes
+      
+        //Added Etherscan API Key and introduced balance rotation for APIs  
 
 		public static string App_Path = AppDomain.CurrentDomain.BaseDirectory;
 
