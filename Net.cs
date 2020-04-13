@@ -1848,7 +1848,11 @@ namespace NebliDex_Linux
 
                             //The client wants to know if his min_version is ok
                             int cversion = Convert.ToInt32(js["cn.result"].ToString()); //Get client version
-							int totalmarket = Convert.ToInt32(js["cn.totalmarkets"].ToString()); //Get the total markets
+							int totalmarket = 0;
+                            if(js["cn.totalmarkets"] != null){
+                                // Older version do not have the total markets
+                                totalmarket = Convert.ToInt32(js["cn.totalmarkets"].ToString()); //Get the total markets
+                            }
                             if (cversion < protocol_min_version)
                             {
                                 //Not good, return information to client
