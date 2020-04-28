@@ -3290,6 +3290,7 @@ namespace NebliDex_Linux
                 //The new method is to create the ntp1 transactions locally
                 Decimal tx_input_values = 0;
                 Transaction tx = GenerateScratchNTP1Transaction(from_add, to_array, ref tx_input_values);
+				if (tx == null) { return null; }
                 return Tuple.Create(tx, tx_input_values);
             }
             catch (Exception e)
@@ -4326,11 +4327,14 @@ namespace NebliDex_Linux
                 bool match = false;
                 foreach (JObject utxo in unordered_utxos)
                 {
+					bool token_present = false;
+                    int token_count = 0;
                     foreach (JObject token in utxo["tokens"])
                     {
-                        //Go through the list of tokens in this UTXO, only look at the first token
+                        //Go through the list of tokens in this UTXO, may have duplicate tokens
                         if (token["tokenId"].ToString() == token_types[i])
                         {
+                            token_present = true;
                             match = true;
                             if (tokeninput_amounts.ContainsKey(token_types[i]) == false)
                             {
@@ -4340,9 +4344,32 @@ namespace NebliDex_Linux
                             {
                                 tokeninput_amounts[token_types[i]] += Convert.ToInt64(token["amount"].ToString()); //Get the amount of this token type
                             }
-                            ordered_utxos.Add(utxo);
                         }
-                        break;
+                        token_count++;
+                    }
+                    if (token_present == true)
+                    {
+                        if (token_count > 1)
+                        {
+                            // More than 1 token at this UTXO, check whether they are mixed tokens (shouldn't happen normally)
+                            string firstToken = "";
+                            foreach (JObject token in utxo["tokens"])
+                            {
+                                if (firstToken.Length == 0)
+                                {
+                                    firstToken = token["tokenId"].ToString();
+                                }
+                                else
+                                {
+                                    if (firstToken.Equals(token["tokenId"].ToString()) == false)
+                                    {
+                                        NebliDexNetLog("UTXO contains multiple different tokens, not allowed in current configuration");
+                                        return null;
+                                    }
+                                }
+                            }
+                        }
+                        ordered_utxos.Add(utxo); // Our desired token is in UTXO, add the UTXO in order
                     }
                 }
                 if (match == false)
@@ -4386,7 +4413,7 @@ namespace NebliDex_Linux
             Transaction tx = new Transaction();
             tx.hasTimeStamp = true;
 
-            //Add the inputs, unfortunately, we cannot see the input values
+            //Add the inputs
             foreach (JObject utxo in ordered_utxos)
             {
                 Decimal val = Convert.ToDecimal(utxo["value"].ToString());
