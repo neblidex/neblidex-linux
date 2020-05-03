@@ -1899,13 +1899,26 @@ namespace NebliDex_Linux
                                     bool timeout;
                                     bool broadcast_ok = true;
                                     string txhash;
+									string calculated_txhash;
                                     if (tx != null)
                                     {
                                         txhash = TransactionBroadcast(maker_cointype, tx.ToHex(), out timeout);
+										calculated_txhash = tx.GetHash().ToString();
+                                        if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                        {
+                                            NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                            txhash = "";
+                                        }
                                     }
                                     else
                                     {
                                         txhash = TransactionBroadcast(maker_cointype, eth_tx.Signed_Hex, out timeout);
+										calculated_txhash = eth_tx.HashID;
+                                        if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                        {
+                                            NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                            txhash = "";
+                                        }
                                     }
                                     if (txhash.Length == 0 || timeout == true)
                                     {
@@ -2131,6 +2144,11 @@ namespace NebliDex_Linux
                                         SetMyTransactionData("txhash", JsonConvert.SerializeObject(txinfo), reqtime, table.Rows[i]["order_nonce_ref"].ToString()); //Update txhash
                                         bool timeout;
                                         string txhash = TransactionBroadcast(cointype, txhex, out timeout);
+										if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                        {
+                                            NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                            txhash = "";
+                                        }
                                         //Even if a power failure happens here, we will be able to switch over to monitoring tx on next boot up
                                         if (txhash.Length > 0)
                                         {
@@ -2228,13 +2246,26 @@ namespace NebliDex_Linux
                                             bool broadcast_ok = true;
 
                                             string txhash = "";
+											string calculated_txhash = "";
                                             if (tx != null)
                                             {
                                                 txhash = TransactionBroadcast(cointype, tx.ToHex(), out timeout);
+												calculated_txhash = tx.GetHash().ToString();
+                                                if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                                {
+                                                    NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                                    txhash = "";
+                                                }
                                             }
                                             else
                                             {
                                                 txhash = TransactionBroadcast(cointype, eth_tx.Signed_Hex, out timeout);
+												calculated_txhash = eth_tx.HashID;
+                                                if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                                {
+                                                    NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                                    txhash = "";
+                                                }
                                             }
                                             if (txhash.Length == 0 || timeout == true)
                                             {
@@ -2303,13 +2334,25 @@ namespace NebliDex_Linux
                                         bool timeout;
                                         bool broadcast_ok = true;
                                         string txhash;
+										string calculated_txhash;
                                         if (tx != null)
                                         {
                                             txhash = TransactionBroadcast(taker_cointype, tx.ToHex(), out timeout);
+											calculated_txhash = tx.GetHash().ToString();
+                                            if(txhash.ToLower().Equals(calculated_txhash.ToLower()) == false){
+                                                NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                                txhash = "";
+                                            }
                                         }
                                         else
                                         {
                                             txhash = TransactionBroadcast(taker_cointype, eth_tx.Signed_Hex, out timeout);
+											calculated_txhash = eth_tx.HashID;
+                                            if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                            {
+                                                NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                                txhash = "";
+                                            }
                                         }
                                         if (txhash.Length == 0 || timeout == true)
                                         {
@@ -2435,13 +2478,26 @@ namespace NebliDex_Linux
                                         bool timeout;
                                         bool broadcast_ok = true;
                                         string txhash;
+										string calculated_txhash;
                                         if (tx != null)
                                         {
                                             txhash = TransactionBroadcast(cointype, tx.ToHex(), out timeout);
+											calculated_txhash = tx.GetHash().ToString();
+                                            if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                            {
+                                                NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                                txhash = "";
+                                            }
                                         }
                                         else
                                         {
                                             txhash = TransactionBroadcast(cointype, eth_tx.Signed_Hex, out timeout);
+											calculated_txhash = eth_tx.HashID;
+                                            if (txhash.ToLower().Equals(calculated_txhash.ToLower()) == false)
+                                            {
+                                                NebliDexNetLog("Calculated transaction hash failed to match returned hash");
+                                                txhash = "";
+                                            }
                                         }
                                         if (txhash.Length == 0 || timeout == true)
                                         {
