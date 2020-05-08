@@ -2454,13 +2454,15 @@ namespace NebliDex_Linux
 			if (App.trader_api_activated  == true)
             {
                 App.MessageBox(this, "Notice", "Cannot go into Critical Node Mode when Trading API server running.", "OK");
-                return;
+				ActivateAsCriticalNodeAction.Active = false;
+				return;
             }
 
             if (App.MyOpenOrderList.Count > 0)
             {
 				App.MessageBox(this, "Notice","Cannot go into Critical Node Mode with open orders.","OK");
-                return;
+				ActivateAsCriticalNodeAction.Active = false;
+				return;
             }
 
             //Request CN status from another CN, if none available, alert neblidex.xyz, you are only CN
@@ -2473,7 +2475,7 @@ namespace NebliDex_Linux
             bool old_critical_node = App.critical_node;
 #pragma warning disable
 			Task.Run(() => App.ToggleCNStatus(win));
-#pragma warning enable
+#pragma warning restore
 
 			//Now we will wait for the window to close
 			await Task.Run(() => { win.waiting.WaitOne(); });

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
 
@@ -85,10 +85,10 @@ table, th, td {
 				<li>While running a critical node, please make sure not to disconnect from the network while there are transactions being validated. If you do, the traders will have to utilize the auditing nodes and your node will be penalized and possibly blacklisted. The status bar will tell you how many trades you are validating currently.</li>
 				<li>You cannot trade while also in critical node mode, so it's best practice to create a separate client (duplicate the folder without the data folder) if you want to do both simultaneously.</li>
 				<li>There can only be one critical node running per IP address.</li>
-				<li>You can run Critical Node without a GUI (headless) by passing argument <strong>--criticalnode</strong> commandline.</li>
+				<li>You can run Critical Node without a GUI (headless) by passing argument <strong>--criticalnode</strong> commandline to the program. On Mac, this will be the <strong>neblidex_mac_launch</strong> binary.</li>
 			</ul>
 			<br><strong><big>Trading API</big></strong><br><br>
-			NebliDex supports a trading engine via an API to allow for automated market making and bot trading. Once the client is activated as a Trading API server, it will respond to <strong>localhost (not 127.0.0.1) HTTP requests</strong> at port <strong>6328</strong> only. You can run the Trading API without a GUI (headless) by passing argument <strong>--traderapi</strong> commandline. You cannot trade and be a critical node at the same time.<br><br>
+			NebliDex supports a trading engine via an API to allow for automated market making and bot trading. Once the client is activated as a Trading API server, it will respond to <strong>localhost (not 127.0.0.1) HTTP requests</strong> at port <strong>6328</strong> only. You can run the Trading API without a GUI (headless) by passing argument <strong>--traderapi</strong> commandline to the program. On Mac, this will be the <strong>neblidex_mac_launch</strong> binary. You cannot trade and be a critical node at the same time.<br><br>
 			Request to the trading engine can be performed via <strong>application/x-www-form-urlencoded GET requests</strong> or <strong>application/json POST requests to the local machine at <span style="background-color: rgb(220,220,220);">http://localhost:6328/</span>.</strong> Responses are given as content type application/json with an error(BOOL), message(STRING), code(INT) and optional result(JSON ARRAY or OBJECT) key-value pairs.
 
 			<br><br><strong><big>API Request Methods</big></strong><br><br>
