@@ -780,7 +780,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -932,7 +935,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -1048,7 +1054,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -1233,7 +1242,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -1424,7 +1436,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -1611,7 +1626,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -1715,7 +1733,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -1832,7 +1853,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
@@ -1958,7 +1982,10 @@ namespace NebliDex_Linux
                 if (CN_outbound.Count >= 5) { break; } //We have enough outbound CNs
                 if (cn_ips.Count == 0) { break; }
                 int pos = (int)Math.Round(GetRandomNumber(1, cn_ips.Count)) - 1;
-                CN_outbound.Add(cn_ips[pos]);
+				if (CN_outbound.Contains(cn_ips[pos]) == false)
+                {
+                    CN_outbound.Add(cn_ips[pos]);
+                }
                 cn_ips.RemoveAt(pos);
             }
 
