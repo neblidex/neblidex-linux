@@ -5,7 +5,21 @@
 <meta content="text/html; charset=UTF-8" http-equiv="content-type">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NebliDex - A How to Guide</title>
+<title>NebliDex - Reference Guide</title>
+
+<style>
+table {
+  border-collapse: collapse;
+  background-color: rgb(250,250,250);
+}
+table, th, td {
+  border: 1px solid rgb(200,200,200);
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+</style>
 
 </head>
 
@@ -14,40 +28,54 @@
 	<div style="text-align: center; margin-left: auto; margin-right: auto; min-width: 600px; width: 75%; margin-bottom: 50px;">
 		<h1><span style="font-size: 28px; color: rgb(66,149,195);">Nebli</span><span style="font-size: 28px; color: rgb(33,70,135); font-weight: bold;">Dex</span>
 		</h1>
-		<h1>Quick Start Guide</h1>
+		<h1>Reference Guide</h1>
 		<div style="text-align: left; color: rgb(50,50,50);">
+			<strong>Introduction:<br><br></strong>
 			Thanks for downloading NebliDex, a next generation decentralized exchange that is easy to use, reliable and allows you to trade cryptocurrency without
 			any account registration or withdrawal limits. This exchange is different, as you hold the keys to your wallet at all times and set how much you want
-			to trade. All your data will be stored in a data folder that is created after your first startup. Make sure to completely unzip the file before running the application. The Linux version of NebliDex requires GTK and Mono installed on your computer. You can find instructions how to
-			install the <strong><a href="https://www.mono-project.com/download/stable/" target="_blank">Mono Framework</a></strong> by following the link. After adding the Mono repository, just <strong><em>"sudo apt-get install mono-complete"</em></strong> to install. If NebliDex doesn't open, it means that you do not have Mono installed correctly. Make sure you grab the latest version of Mono (version 5.12) as some older versions do not work.
-			<br><br>On NebliDex, your account.dat file (that holds all your keys) can be encrypted but remember, wallet encryption is only as strong as the computer you are running it on and can give a false sense of security as anyone who has access to your computer can also put malicious software on it that can track your key strokes thus making the wallet encryption itself useless. If you plan to trade large amounts of cryptocurrency on NebliDex, secure your computer with malware protection and encrypt your hard drive with a strong password. The account.dat file is stored in your data folder. Do not delete it unless you want a new wallet. <strong>Please backup your wallet on first run. Every client running must have its own unique wallet otherwise your trades will fail and your time will be wasted.</strong>
+			to trade. All your data will be stored in a data folder that is created after your first startup. Make sure to completely unzip the file before running the application.<br><br>On NebliDex, your account.dat file (that holds all your keys) can be encrypted but remember, wallet encryption is only as strong as the computer you are running it on and can give a false sense of security as anyone who has access to your computer can also put malicious software on it that can track your key strokes thus making the wallet encryption itself useless. If you plan to trade large amounts of cryptocurrency on NebliDex, secure your computer with malware protection and encrypt your hard drive with a strong password. The account.dat file is stored in your data folder. Do not delete it unless you want a new wallet. <strong>Please backup your wallet on first run. Every client running must have its own unique wallet otherwise your trades will fail and your time will be wasted.</strong> Also create new backups when you change your wallet addresses.
+			<strong><br><br>For Windows:<br><br></strong>
+			You must have at least <strong>
+			<a href="https://www.microsoft.com/en-us/download/details.aspx?id=30653" target="_blank">.NET Framework v4.5</a></strong> installed on your computer before you can run it. Most newer Windows computers come preloaded with this software.
+			<strong><br><br>For Mac:<br><br></strong>
+			NebliDex was built on OSX 10.11 (El Capitan) but should work on versions greater than or equal to 10.7. Because this app is not signed by Apple's Developer Account, OSX Gatekeeper may block it from opening. If that happens, make sure to right click on the APP and click Open to run it. This will give you an option to bypass Gatekeeper.
+			<strong><br><br>For Linux:<br><br></strong>
+			NebliDex requires GTK and the Mono Runtime to be installed on your computer. You can find instructions how to install the <strong><a href="https://www.mono-project.com/download/stable/" target="_blank">Mono Framework</a></strong> by following the link. After adding the Mono repository, just <strong>"sudo apt-get install mono-complete"</strong> to install. If NebliDex doesn't open, it means that you do not have Mono installed correctly. Make sure you grab the latest version of Mono (or at least version 5.12) as some older versions do not work. 
 			<br><br>
 			<strong>Your first trade</strong>
 			<ol>
 				<li>Click on the NebliDex application, it will open up a dialog and begin to create the databases and find the electrum servers based on known DNS seeds.</li>
 				<li>It will prompt you to enter a password if you chose to have one. Remember there is no password recovery so make sure to make it memorable.</li>
 				<li>It will then prompt you to enter the DNS seed to use to search for critical nodes, use the default and press connect.</li>
-				<li>It will then find critical nodes and connect to a random one, after which it will load the charts and open orders for NEBL/BTC market.</li>
+				<li>It will then find critical nodes and connect to a random one, after which it will load the charts and open orders for NDEX/NEBL market.</li>
 				<li>If your connection was successful, the main window will open. Welcome to NebliDex! Open orders will be listed on the left windows. Sell orders on the top and Buy orders on the bottom. Your wallet is in the bottom left corner. If you aren't fully connected, the status bar will show you as not fully connected. In that case, either wait or restart the program.</li>
 				<li>Before you can participate in any trades, you must load your wallet so deposit coins into your wallet and wait for them to confirm into it.</li>
 				<li>You will need NDEX to participate in most trade as that is the currency used to pay critical nodes to help facilitate the trade. Go to the top left drop down and select any NDEX based market to purchase NDEX. You can either create a Buy order on the market or match a Sell order to get NDEX. The seller of NDEX pays all the NDEX fee so you don't have to worry about that.</li>
 				<li>To match orders, just double click on the order that you would like to match and enter the desired amount.</li>
-				<li>Once you've matched a trade, it will be listed as processing on your My Open Order Tab then it will switch over to your My Trade History Tab as PENDING. This means the trade has started and will continue until it is completely settled for both parties. At this point, it is irreversible. Depending on the blockchain used, it can take anywhere from <strong>1 minute to 60 minutes</strong> to completely settle. Keep NebliDex open during this time to speed up settlement otherwise it can take longer. You cannot trade the coins/tokens during this time that were involved in the trade.</li>
+				<li>Once you've matched a trade, it will be listed as processing on your My Open Order Tab then it will switch over to your My Trade History Tab as PENDING. This means the trade has started and will continue until it is completely settled for both parties. At this point, it is irreversible. Depending on the blockchain used, it can take anywhere from <strong>1 minute to 60 minutes</strong> to completely settle. Keep NebliDex open during this time to speed up settlement otherwise <strong>you may lose the trade amount if you close the client prematurely.</strong> You cannot trade the coins/tokens during this time that were involved in the trade.</li>
 				<li>Once the trade is complete, the pending trade will get a timestamp and your wallet will be available to you once again for you to continue trading.</li>
-				<li>NebliDex has a feature that will prevent your computer from sleeping when you have it running, so keep this in mind if you are running from a laptop or other battery powered device.</li>
+				<li>On Windows, NebliDex has a feature that will prevent your computer from sleeping when you have it running, so keep this in mind if you are running from a laptop or other battery powered device.</li>
 				<li>You may notice different statuses appear on your NebliDex wallet. <strong>Avail</strong> means ready to trade. <strong>Pend</strong> is similar to Avail but means there are funds incoming. <strong>Wait</strong> means you must wait for transaction confirmations before you can move your funds again for trading or withdrawal.</li>
 			</ol>
 			<br>
-			NebliDex is a manual order matching system of traders who can be either <strong>Makers or Takers</strong>. A maker is a person who creates a standing order on the market that he or she would like to fill. It can either be a Buy order or Sell order. Makers create the market and set the price for trade tokens and coins. An order is only available <strong>as long as the maker has NebliDex open.</strong> Once the maker goes offline, the orders will close automatically. NebliDex can be ran in the background for those who have long standing orders. Remember to <strong>close</strong> your open orders if you plan to close the program as it will make sure that you do not leave in the middle of a trade.<br>
-			<br>Takers, on the other hand, look for open orders and match them based on their own needs. For the taker, the process is simpler as there is no requirement to stay online because once the order is matched, a trade is created. Just double click the open order and select your amount desired to match. Also, as this a new platform, it is advised to trade with small amounts; however there are no trade limits implemented.
+			NebliDex is a manual order matching system of traders who can be either <strong>Makers or Takers</strong>. A maker is a person who creates a standing order on the market that he or she would like to fill. It can either be a Buy order or Sell limit order. Makers create the market and set the price for trade tokens and coins. An order is only available <strong>as long as the maker has NebliDex open.</strong> Once the maker goes offline, the orders will close automatically. NebliDex can be ran in the background for those who have long standing orders. Remember to <strong>close</strong> your open orders if you plan to close the program as it will make sure that you do not leave in the middle of a trade. Makers add liquidity to the markets and are rewarded as such with spread profit and taker fees.<br>
+			<br>Takers, on the other hand, look for open orders and match them based on their own needs. For the taker, the process is simpler as there is no requirement to stay online because once the order is matched, a trade is created. Just double click the open order and select your amount desired to match. Takers remove liquidity from the market and are charged with taker fees that goes directly to the makers. As this a new platform, it is advised to trade with small amounts; however there are no trade limits implemented.
 
 			<br><br>
 			<strong>NebliDex Fee Structure</strong>
-			<br>NebliDex employs dynamic fee calculating to make sure that trades are processed as fast as possible (within 1 confirmation on blockchain). Because of that, fees are recalculated every 5 seconds for the participating blockchains and are shown in your status bar at the bottom of the application. The fees are shown per kilobyte of data, whereas a typical transaction is usually between 200-400 bytes long. Every trader must pay the blockchain fee, this applies to both the maker and the taker. The trader will need to pay <strong>2x</strong> the expected blockchain fee due his / her funds being temporarily stored in the atomic swap contract.
-			<br><br>In addition to blockchain fees, a NDEX fee must be paid to the validating node that is facilitating the trade. A trade is created each time a taker requests all or part of the maker's order. The NDEX fee is also shown in the status bar and is updated every 15 minutes. The NDEX fee is based on the average price of NDEX/NEBL pair from the last 270 minutes. This fee is split between the maker and the taker evenly. If a person is selling NDEX to someone else, that person will pay the entire NDEX fee; however, the buyer will receive the requested amount minus his/her predicted fee thus simulating an equal split of fees. If a buyer is trading for non-Neblio based coins, he or she will receive NEBL <strong>(NEBL blockchain fee x 12)</strong> from the seller to pay for gas fees for future trades. This is done because all NTP1 based tokens require a little bit of NEBL to move them around.
-
-			<br><br><strong>Setting up a Critical Node</strong><br>
-			If you have the minimum amount of NDEX to become a critical node (39,000 NDEX), congratulations! When you activate NebliDex in critical node mode, you will become part of a network to help keep NebliDex running effectively and efficiently by decreasing the workload on other critical nodes. In order to begin running as a critical node, there are some steps to be followed before hand:
+			<br><br>Because NebliDex is a DEX, its fee structure is more complicated than those of a centralized exchange; however, overall the fees should be significantly less than those found with centralized exchanges. There are three types of fees on NebliDex:
+			<big><big>
+			<ul>
+				<li>Blockchain Fee<br>
+					<small><small>NebliDex employs dynamic blockchain fee calculations to make sure that trades are processed as fast as possible (within 1 confirmation) on the blockchain. Because of that, fees are recalculated every 5 seconds for the participating blockchains and are shown in your status bar at the bottom of the application. The fees are shown per kilobyte of data, whereas a typical transaction is usually between 200-400 bytes long. Every trader must pay the blockchain fee, this applies to both the maker and the taker. The traders will need to pay <strong>2x</strong> the calculated blockchain fee due his / her funds being temporarily stored in an atomic swaps contract.</small></small><br><br></li>
+				<li>Relay Fee<br>
+					<small><small>A relay fee must be paid to the validating node that is facilitating the trade. The NDEX fee is shown in the status bar and is updated every 15 minutes. The NDEX fee is based on the average price of NDEX/NEBL pair from the last 270 minutes. This fee is split between the maker and the taker evenly. If a person is selling NDEX to someone else, that person will pay the entire NDEX fee; however, the buyer will receive the requested amount minus his/her predicted fee thus simulating an equal split of fees. Sellers of NDEX have an extra fee when trading for non-Neblio based coins. They will send a small amount of additional NEBL <strong>(NEBL blockchain fee x 12)</strong> to the buyer to help pay for gas fees for future trades. This is done because all NEBL based tokens require a little bit of NEBL to move them around.</small></small><br><br></li>
+				<li>Taker Fee<br>
+					<small><small>A taker fee is a flat <strong>0.2%</strong> of the requested amount. This fee goes entirely to the maker. The taker will receive the requested amount minus the taker fee. For example, if a taker is requesting 100,000 TRIF from the maker, the taker will receive 99,800 TRIF and the maker will keep 200 TRIF as a fee. Since NTP1 tokens are indivisible, the fee will be rounded down for them. All other types of tokens/coins are rounded to 8 decimal places.</small></small></li>
+			</ul>
+			</big></big>
+			<strong>Setting up a Critical Node</strong><br><br>
+			If you have the minimum amount of NDEX to become a critical node (39,000 NDEX), you are eligible to become a validator on the network. When you activate NebliDex in critical node mode, you will become part of a network to help keep NebliDex running effectively and efficiently by decreasing the workload on other critical nodes. In order to begin running as a critical node, there are some steps to be followed before hand:
 			<ul>
 				<li>Make sure that you have a reliable connection to the internet and a power failure backup to prevent loss of a connection. If possible, use a VPS (Virtual Private Server) to ensure that.</li>
 				<li>Confirm that your system clock (the current time) has been synchronized with the Internet time.</li>
@@ -57,15 +85,335 @@
 				<li>While running a critical node, please make sure not to disconnect from the network while there are transactions being validated. If you do, the traders will have to utilize the auditing nodes and your node will be penalized and possibly blacklisted. The status bar will tell you how many trades you are validating currently.</li>
 				<li>You cannot trade while also in critical node mode, so it's best practice to create a separate client (duplicate the folder without the data folder) if you want to do both simultaneously.</li>
 				<li>There can only be one critical node running per IP address.</li>
-				<li>You can run Critical Node without GUI (headless) by passing argument --criticalnode commandline. For mono, that would be: <em>mono [App_Path] --criticalnode</em></li>
+				<li>You can run Critical Node without a GUI (headless) by passing argument <strong>--criticalnode</strong> commandline.</li>
 			</ul>
+			<br><strong><big>Trading API</big></strong><br><br>
+			NebliDex supports a trading engine via an API to allow for automated market making and bot trading. Once the client is activated as a Trading API server, it will respond to <strong>localhost (not 127.0.0.1) HTTP requests</strong> at port <strong>6328</strong> only. You can run the Trading API without a GUI (headless) by passing argument <strong>--traderapi</strong> commandline. You cannot trade and be a critical node at the same time.<br><br>
+			Request to the trading engine can be performed via <strong>application/x-www-form-urlencoded GET requests</strong> or <strong>application/json POST requests to the local machine at <span style="background-color: rgb(220,220,220);">http://localhost:6328/</span>.</strong> Responses are given as content type application/json with an error(BOOL), message(STRING), code(INT) and optional result(JSON ARRAY or OBJECT) key-value pairs.
 
-			<br><strong>Reporting An Issue</strong><br>
-			If you notice anything strange about how NebliDex is performing, please <a href="https://www.neblidex.xyz/bugreport/" target="_blank">report the bug</a> and we will try to address it promptly. Vulnerability disclosures must also be sent using this form.
+			<br><br><strong><big>API Request Methods</big></strong><br><br>
+			<strong>• Perform a connection test</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>ping</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get the current market of the client</strong><br>
+			<small>This request will return<span style="background-color: rgb(220,220,220);"> Loading Market </span>if the market hasn't been fully loaded yet</small><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>currentMarket</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get the last price of the trade token/coin for the current market</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>lastPrice</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get the current CN fee for NebliDex</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>currentCNFee</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get a list of all the active markets on NebliDex</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>marketList</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get a list of all your active wallets on NebliDex</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>walletList</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get details on a desired wallet</strong><br>
+			<small>Result includes balance, address and wallet availability</small><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>walletDetails</strong></td>
+						<td> </td>
+					</tr>
+					<tr>
+						<td>coin</td>
+						<td>STRING</td>
+						<td>The wallet abbreviation such as NDEX. Case insensitive.</td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get the order book for the current market.</strong><br>
+			<small>Orders are sorted from highest to lowest price and split between asks and bids</small><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>marketDepth</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get the most recent trades for the current market sorted from newest to oldest</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>recentMarketTrades</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Get a list of all your open orders for all markets</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>myOpenOrders</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Change the current market to a desired market</strong><br>
+			<small>This is an asynchronous call thus you need to wait until the new market is fully loaded before calling another market related request</small><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>changeMarket</strong></td>
+						<td> </td>
+					</tr>
+					<tr>
+						<td>desiredMarket</td>
+						<td>STRING</td>
+						<td>Case sensitive market abbreviation such as NDEX/NEBL</td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Cancel your open maker order using its order ID</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>cancelOrder</strong></td>
+						<td> </td>
+					</tr>
+					<tr>
+						<td>orderID</td>
+						<td>STRING</td>
+						<td>Case sensitive order ID</td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Cancel all your maker orders</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>cancelAllOrders</strong></td>
+						<td> </td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Match an open order on the current market with its order ID</strong><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>postTakerOrder</strong></td>
+						<td> </td>
+					</tr>
+					<tr>
+						<td>orderID</td>
+						<td>STRING</td>
+						<td>Case sensitive order ID of maker order to match</td>
+					</tr>
+					<tr>
+						<td>amount</td>
+						<td>DECIMAL</td>
+						<td>Must use period for decimal place, no commas allowed</td>
+					</tr>
+					<tr>
+						<td>approveERC20</td>
+						<td>BOOLEAN</td>
+						<td>(Optional) Some trades require ERC20 approvals, set true to auto-approve. All approvals require order resubmission after approval</td>
+					</tr>
+				</tbody>
+			</table>
+			<br><br><strong>• Post a new maker limit order to the current market</strong><br>
+			<small>Response will return a unique order ID for your order if successful</small><br><br>
+			<table>
+				<thead>
+					<tr style="text-align: center;">
+						<th><small>Parameter</small></th>
+						<th><small>Value</small></th>
+						<th><small>Description</small></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>request</td>
+						<td><strong>postMakerOrder</strong></td>
+						<td> </td>
+					</tr>
+					<tr>
+						<td>orderType</td>
+						<td>STRING</td>
+						<td>Can be either a <strong>BUY</strong> or <strong>SELL</strong> order</td>
+					</tr>
+					<tr>
+						<td>price</td>
+						<td>DECIMAL</td>
+						<td>Must use period for decimal place, no commas allowed</td>
+					</tr>
+					<tr>
+						<td>amount</td>
+						<td>DECIMAL</td>
+						<td>Must use period for decimal place, no commas allowed</td>
+					</tr>
+					<tr>
+						<td>minAmount</td>
+						<td>DECIMAL</td>
+						<td>Must use period for decimal place, no commas allowed</td>
+					</tr>
+					<tr>
+						<td>approveERC20</td>
+						<td>BOOLEAN</td>
+						<td>(Optional) Some trades require ERC20 approvals, set true to auto-approve. All approvals require order resubmission after approval</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<br><br><strong>Reporting An Issue</strong><br><br>
+			If you notice anything strange about how NebliDex is performing, please <a href="https://www.neblidex.xyz/bugreport/" target="_blank">report the bug</a> and we will try to address it promptly. Vulnerability disclosures must go there also.
 			<br><br>
 			If a trade fails to complete, it will be canceled after 3-4 hours. No funds will be moved and the traders will be able to trade again. Trades may occasionally fail due to power failures, loss of network connectivity or unexpected behavior from clients. This should be infrequent.
 
-			<br><br><strong>Disclaimer</strong><br>
+			<br><br><strong>Disclaimer</strong><br><br>
 			THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. NEBLIDEX IS DECENTRALIZED, MEANING THERE IS NO ONE LOCATION FOR STORAGE OF FUNDS, THEREFORE THE DEVELOPMENT TEAM CANNOT REFUND OR RESTORE FUNDS FROM BAD TRADES, PLATFORM ERRORS OR USER ERRORS.
 		</div>
 	</div>

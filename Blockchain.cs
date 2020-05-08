@@ -35,6 +35,7 @@ namespace NebliDex_Linux
         public static System.Object transactionLock = new System.Object(); //This is a lock that prevents multiple active transactions
         public static decimal[] blockchain_fee = new decimal[7]; //Ordered based on cointype
         public static decimal ndex_fee = 10; //10 Total for trade, usually split per trader
+		public static decimal taker_fee = 0.002m; // 0.2% Taker fee that goes directly to maker, paid in requested coin
         public static decimal[] dust_minimum = new decimal[7]; //The smallest UTXOUT for a transaction possible, otherwise it will be rejected
         public static bool testnet_mode = false; //Easy switch between testnet and main
         public static uint ntp1downcounter = 0; //If more than 2 down counts, network is down

@@ -205,6 +205,23 @@ namespace NebliDex_Linux
 
             if (sending_erc20 == true)
             {
+				//And now look at all your maker open orders on the exchange that send this token
+                lock (App.MyOpenOrderList)
+                {
+                    for (int i = 0; i < App.MyOpenOrderList.Count; i++)
+                    {
+                        if (App.MyOpenOrderList[i].type == 0 && App.MarketList[App.MyOpenOrderList[i].market].base_wallet == erc20_wallet)
+                        {
+                            //We are sending this token in another order, add it to the erc20_amount
+                            erc20_amount += Math.Round(App.MyOpenOrderList[i].price * App.MyOpenOrderList[i].amount, 8);
+                        }
+                        else if (App.MyOpenOrderList[i].type == 1 && App.MarketList[App.MyOpenOrderList[i].market].trade_wallet == erc20_wallet)
+                        {
+                            erc20_amount += App.MyOpenOrderList[i].amount;
+                        }
+                    }
+                }
+
                 //Make sure the allowance is there already
                 decimal allowance = App.GetERC20AtomicSwapAllowance(App.GetWalletAddress(erc20_wallet), App.ERC20_ATOMICSWAP_ADDRESS, erc20_wallet);
                 if (allowance < 0)
