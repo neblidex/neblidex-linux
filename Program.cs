@@ -22,24 +22,20 @@ namespace NebliDex_Linux
         public static int default_ui_look = 0; //UI look when ExchangeWindow opens
 
 		//Mainnet version
-		public static int protocol_version = 10; //My protocol version
-        public static int protocol_min_version = 10; //Minimum accepting protocol version
-        public static string version_text = "v10.0.3";
+		public static int protocol_version = 11; //My protocol version
+        public static int protocol_min_version = 11; //Minimum accepting protocol version
+        public static string version_text = "v11.0.0";
 		public static bool run_headless = false; //If true, this software is ran in critical node mode without GUI on startup
 		public static bool http_open_network = true; //This becomes false if user closes window
 		public static int sqldatabase_version = 3;
 		public static int accountdat_version = 1; //The version of the account wallet
 
-		//Lowest testnet version: 10
-        //Lowest mainnet version: 10
+		//Lowest testnet version: 11
+        //Lowest mainnet version: 11
 
-		//Version 10
-        //Allow for very small ERC20 order amounts (ideal for wBTC)
-        //Updated DAI contract to new version
-        //Fixed ETH confirmation bug
-        //Allow for new markets without protocol changes
-      
-        //Added Etherscan API Key and introduced balance rotation for APIs  
+		//Version 11
+        //Changed fee schedule, added a taker only fee of 0.2%
+        //Fix possible case where ERC20 token transaction fails due to unallocated allowance 
 
 		public static string App_Path = AppDomain.CurrentDomain.BaseDirectory;
 
@@ -967,7 +963,7 @@ namespace NebliDex_Linux
 			}
 		}
 
-		public static List<CancelOrderToken> CancelOrderTokenList = new List<App.CancelOrderToken>();
+		public static List<CancelOrderToken> CancelOrderTokenList = new List<CancelOrderToken>();
 
 		public class CancelOrderToken
 		{
@@ -1003,7 +999,7 @@ namespace NebliDex_Linux
             //4 - maker has tx sent to validator to broadcast 
             // In stage 4, maker cannot close program now as may miss time when taker pulls from maker contract
             // Maker contract is continuously monitored for spending transaction
-            // Once taker has funded contract, maker extracts secret and pulls from taker contract immediately
+            // Once taker has defunded maker contract, maker extracts secret and pulls from taker contract immediately
             // After successful pull, maker is available to trade again
 
             //Taker Information
@@ -1312,16 +1308,28 @@ namespace NebliDex_Linux
             {
                 run_headless = true;
                 //Interpret this as an attempt to be headless
-                if (args[0] == "--criticalnode")
+				if (args.Length > 1)
                 {
+                    Console.WriteLine("This application can only be ran headless with --criticalnode or --traderapi argument, not both");
+                    Headless_Application_Close();
+                }
+				if (args[0] == "--criticalnode")
+				{
 					Console.WriteLine("Path: " + App_Path);
-                    Start(null);
+					Start(null);
 					//There needs to be a loop here to prevent the program from closing
 					Headless_Infinite_Loop();
 				}
+				else if (args[0] == "--traderapi")
+				{
+					trader_api_activated = true;
+                    Start(null);
+					//There needs to be a loop here to prevent the program from closing
+                    Headless_Infinite_Loop();
+				}
                 else
                 {
-                    Console.WriteLine("This application can only be ran headless with --criticalnode argument");
+					Console.WriteLine("This application can only be ran headless with --criticalnode or --traderapi argument");
 					Headless_Application_Close();
                 }
 
@@ -1486,6 +1494,14 @@ namespace NebliDex_Linux
             if (run_headless == true)
             {
                 Console.WriteLine("Loading NebliDex Program, version: " + version_text);
+				if (trader_api_activated == true)
+                {
+                    Console.WriteLine("Loading As Trader API server");
+                }
+                else
+                {
+                    Console.WriteLine("Loading As Critical Node server");
+                }
             }
 
             //Now create database
@@ -1715,9 +1731,18 @@ namespace NebliDex_Linux
             //If headless, we will try to run headless in 20 seconds
             if (run_headless == true)
             {
-                Console.WriteLine("Attempting to run as Critical Node in 20 seconds...");
-                NebliDexNetLog("Attempting to run as Critical Node in 20 seconds");
-                HeadlessTimer = new Timer(new TimerCallback(StartHeadlessCN), null, 20 * 1000, System.Threading.Timeout.Infinite);
+				if (trader_api_activated == false)
+                {
+                    Console.WriteLine("Attempting to run as Critical Node in 20 seconds...");
+                    NebliDexNetLog("Attempting to run as Critical Node in 20 seconds");
+                    HeadlessTimer = new Timer(new TimerCallback(StartHeadlessCN), null, 20 * 1000, System.Threading.Timeout.Infinite);
+                }
+                else
+                {
+                    Console.WriteLine("Attempting to activate Trader API in 5 seconds...");
+                    NebliDexNetLog("Attempting to activate Trader API in 5 seconds");
+					HeadlessTimer = new Timer(new TimerCallback(StartHeadlessTraderAPI), null, 5 * 1000, System.Threading.Timeout.Infinite);
+                }
             }
 
         }
@@ -3294,10 +3319,10 @@ namespace NebliDex_Linux
                 //Future versions will go here
 
                 //Move the files
-                if (File.Exists(App.App_Path + "/data/account_new.dat") != false)
+                if (File.Exists(App_Path + "/data/account_new.dat") != false)
                 {
-                    File.Delete(App.App_Path + "/data/account.dat");
-                    File.Move(App.App_Path + "/data/account_new.dat", App.App_Path + "/data/account.dat");
+                    File.Delete(App_Path + "/data/account.dat");
+                    File.Move(App_Path + "/data/account_new.dat", App_Path + "/data/account.dat");
                 }
 
                 //Also delete the old electrum nodes list as the client will find the new nodes
@@ -3343,7 +3368,7 @@ namespace NebliDex_Linux
             if (running_consolidation_check == true) { return true; } //Wallet is checking for too many UTXOs
 
             //This will return true if there is a pending payment being processed
-            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App.App_Path + "/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App_Path + "/data/neblidex.db\";Version=3;");
             mycon.Open();
 
             //Set our busy timeout, so we wait if there are locks present
@@ -3366,7 +3391,7 @@ namespace NebliDex_Linux
 		public static bool CheckPendingTrade()
         {
             //This will return true if there is a pending payment being processed
-            SqliteConnection mycon = new SqliteConnection("Data Source=\""+App.App_Path+"/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\""+App_Path+"/data/neblidex.db\";Version=3;");
             mycon.Open();
             
             //Set our busy timeout, so we wait if there are locks present
@@ -3533,9 +3558,9 @@ namespace NebliDex_Linux
                 {
 					//Reload the wallet list in the nodestore
 					main_window.Wallet_View_Public.NodeStore.Clear();
-					for (int i = 0; i < App.WalletList.Count; i++)
+					for (int i = 0; i < WalletList.Count; i++)
                     {
-                        main_window.Wallet_View_Public.NodeStore.AddNode(App.WalletList[i]);
+                        main_window.Wallet_View_Public.NodeStore.AddNode(WalletList[i]);
                     }
                 });
             }
@@ -4181,7 +4206,7 @@ namespace NebliDex_Linux
         public static bool CheckSavedOrders()
         {
             //This function will check the database if you had open orders and return true if you did
-            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App.App_Path + "/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App_Path + "/data/neblidex.db\";Version=3;");
             mycon.Open();
 
             //Set our busy timeout, so we wait if there are locks present
@@ -4204,7 +4229,7 @@ namespace NebliDex_Linux
         public static void LoadSavedOrders()
         {
             //This function will check the database if you had open orders and return true if you did
-            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App.App_Path + "/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App_Path + "/data/neblidex.db\";Version=3;");
             mycon.Open();
 
             //Set our busy timeout, so we wait if there are locks present
@@ -4226,7 +4251,7 @@ namespace NebliDex_Linux
                 decimal amount = Decimal.Parse(statement_reader["amount"].ToString(), NumberStyles.Float, CultureInfo.InvariantCulture);
                 decimal min_amount = Decimal.Parse(statement_reader["min_amount"].ToString(), NumberStyles.Float, CultureInfo.InvariantCulture);
             
-                OpenOrder ord = new App.OpenOrder();
+                OpenOrder ord = new OpenOrder();
                 ord.order_nonce = nonce;
                 ord.market = market;
                 ord.type = type;
@@ -4246,10 +4271,10 @@ namespace NebliDex_Linux
                 }
                 Application.Invoke(delegate
                 {
-                    if (App.main_window_loaded == true)
+                    if (main_window_loaded == true)
                     {
                         //Must manually add the queued order to the view
-                        App.main_window.Open_Order_List_Public.NodeStore.AddNode(ord);
+                        main_window.Open_Order_List_Public.NodeStore.AddNode(ord);
                     }
                 });
             }
@@ -4262,7 +4287,7 @@ namespace NebliDex_Linux
         public static void ClearSavedOrders()
         {
             //This function will clear the database of savedorders
-            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App.App_Path + "/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App_Path + "/data/neblidex.db\";Version=3;");
             mycon.Open();
 
             //Set our busy timeout, so we wait if there are locks present
@@ -4279,7 +4304,7 @@ namespace NebliDex_Linux
         public static void RemoveSavedOrder(OpenOrder ord)
         {
             //This will delete a specific order from the table that has the same nonce
-            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App.App_Path + "/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App_Path + "/data/neblidex.db\";Version=3;");
             mycon.Open();
 
             //Set our busy timeout, so we wait if there are locks present
@@ -4297,7 +4322,7 @@ namespace NebliDex_Linux
         public static void UpdateSavedOrder(OpenOrder ord)
         {
             //This will update the amount of a specific order
-            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App.App_Path + "/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App_Path + "/data/neblidex.db\";Version=3;");
             mycon.Open();
 
             //Set our busy timeout, so we wait if there are locks present
@@ -4317,7 +4342,7 @@ namespace NebliDex_Linux
         public static void AddSavedOrder(OpenOrder ord)
         {
             //This will add a specific order to the table
-            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App.App_Path + "/data/neblidex.db\";Version=3;");
+            SqliteConnection mycon = new SqliteConnection("Data Source=\"" + App_Path + "/data/neblidex.db\";Version=3;");
             mycon.Open();
 
             //Set our busy timeout, so we wait if there are locks present

@@ -44,6 +44,8 @@ namespace NebliDex_Linux
 
 		private global::Gtk.ToggleAction DarkTheme_Action;
 
+		private global::Gtk.ToggleAction ActivateTraderAPIAction;
+
 		private global::Gtk.VBox vbox1;
 
 		private global::Gtk.MenuBar menubar1;
@@ -216,6 +218,9 @@ namespace NebliDex_Linux
 			this.DarkTheme_Action = new global::Gtk.ToggleAction("DarkTheme_Action", global::Mono.Unix.Catalog.GetString("Dark"), null, null);
 			this.DarkTheme_Action.ShortLabel = global::Mono.Unix.Catalog.GetString("Dark");
 			w1.Add(this.DarkTheme_Action, null);
+			this.ActivateTraderAPIAction = new global::Gtk.ToggleAction("ActivateTraderAPIAction", global::Mono.Unix.Catalog.GetString("Activate Trader API"), null, null);
+			this.ActivateTraderAPIAction.ShortLabel = global::Mono.Unix.Catalog.GetString("Activate Trader API");
+			w1.Add(this.ActivateTraderAPIAction, null);
 			this.UIManager.InsertActionGroup(w1, 0);
 			this.AddAccelGroup(this.UIManager.AccelGroup);
 			this.Name = "NebliDex_Linux.ExchangeWindow";
@@ -229,7 +234,7 @@ namespace NebliDex_Linux
 			this.vbox1 = new global::Gtk.VBox();
 			this.vbox1.Name = "vbox1";
 			// Container child vbox1.Gtk.Box+BoxChild
-			this.UIManager.AddUiFromString(@"<ui><menubar name='menubar1'><menu name='FileAction' action='FileAction'><menuitem name='EncryptWalletAction' action='EncryptWalletAction'/><menuitem name='BackupWalletAction' action='BackupWalletAction'/><menuitem name='ImportNebliDexWalletAction' action='ImportNebliDexWalletAction'/><menuitem name='ClearCNDataAction' action='ClearCNDataAction'/><menuitem name='RunInBackgroundAction1' action='RunInBackgroundAction1'/><menuitem name='ExitAction' action='ExitAction'/><menuitem/></menu><menu name='ConfigurationsAction' action='ConfigurationsAction'><menu name='ThemesAction' action='ThemesAction'><menuitem name='DefaultTheme_Action' action='DefaultTheme_Action'/><menuitem name='LightTheme_Action' action='LightTheme_Action'/><menuitem name='DarkTheme_Action' action='DarkTheme_Action'/></menu><menuitem name='ChangeDefaultDNSSeedAction' action='ChangeDefaultDNSSeedAction'/><menuitem name='ActivateAsCriticalNodeAction' action='ActivateAsCriticalNodeAction'/><menuitem name='ChangeWalletAddressesAction' action='ChangeWalletAddressesAction'/><menuitem/></menu><menu name='ExportAction' action='ExportAction'><menuitem name='ExportAllTradeHistoryAction' action='ExportAllTradeHistoryAction'/><menuitem name='ExportAllCNFeeDataAction' action='ExportAllCNFeeDataAction'/></menu></menubar></ui>");
+			this.UIManager.AddUiFromString(@"<ui><menubar name='menubar1'><menu name='FileAction' action='FileAction'><menuitem name='EncryptWalletAction' action='EncryptWalletAction'/><menuitem name='BackupWalletAction' action='BackupWalletAction'/><menuitem name='ImportNebliDexWalletAction' action='ImportNebliDexWalletAction'/><menuitem name='ClearCNDataAction' action='ClearCNDataAction'/><menuitem name='RunInBackgroundAction1' action='RunInBackgroundAction1'/><menuitem name='ExitAction' action='ExitAction'/><menuitem/></menu><menu name='ConfigurationsAction' action='ConfigurationsAction'><menu name='ThemesAction' action='ThemesAction'><menuitem name='DefaultTheme_Action' action='DefaultTheme_Action'/><menuitem name='LightTheme_Action' action='LightTheme_Action'/><menuitem name='DarkTheme_Action' action='DarkTheme_Action'/></menu><menuitem name='ChangeDefaultDNSSeedAction' action='ChangeDefaultDNSSeedAction'/><menuitem name='ActivateAsCriticalNodeAction' action='ActivateAsCriticalNodeAction'/><menuitem name='ChangeWalletAddressesAction' action='ChangeWalletAddressesAction'/><menuitem name='ActivateTraderAPIAction' action='ActivateTraderAPIAction'/></menu><menu name='ExportAction' action='ExportAction'><menuitem name='ExportAllTradeHistoryAction' action='ExportAllTradeHistoryAction'/><menuitem name='ExportAllCNFeeDataAction' action='ExportAllCNFeeDataAction'/></menu></menubar></ui>");
 			this.menubar1 = ((global::Gtk.MenuBar)(this.UIManager.GetWidget("/menubar1")));
 			this.menubar1.Name = "menubar1";
 			this.vbox1.Add(this.menubar1);

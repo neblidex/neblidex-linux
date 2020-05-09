@@ -120,6 +120,13 @@
         <property name="Active">False</property>
         <signal name="Activated" handler="Select_UI_Look" />
       </action>
+      <action id="ActivateTraderAPIAction">
+        <property name="Type">Toggle</property>
+        <property name="Label" translatable="yes">Activate Trader API</property>
+        <property name="ShortLabel" translatable="yes">Activate Trader API</property>
+        <property name="DrawAsRadio">False</property>
+        <property name="Active">False</property>
+      </action>
     </action-group>
     <property name="MemberName" />
     <property name="Title" translatable="yes">NebliDex: A Decentralized Neblio Exchange</property>
@@ -153,7 +160,7 @@
                 <node type="Menuitem" action="ChangeDefaultDNSSeedAction" />
                 <node type="Menuitem" action="ActivateAsCriticalNodeAction" />
                 <node type="Menuitem" action="ChangeWalletAddressesAction" />
-                <node type="Menuitem" />
+                <node type="Menuitem" action="ActivateTraderAPIAction" />
               </node>
               <node type="Menu" action="ExportAction">
                 <node type="Menuitem" action="ExportAllTradeHistoryAction" />

@@ -31,7 +31,6 @@ namespace NebliDex_Linux
 			global::Stetic.Gui.Initialize(this);
 			// Widget NebliDex_Linux.DepositWindow
 			this.WidthRequest = 370;
-			this.HeightRequest = 250;
 			this.Name = "NebliDex_Linux.DepositWindow";
 			this.Title = global::Mono.Unix.Catalog.GetString("Deposit To Wallet");
 			this.TypeHint = ((global::Gdk.WindowTypeHint)(1));

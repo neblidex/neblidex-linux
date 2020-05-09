@@ -506,6 +506,7 @@
     <Compile Include="Nethereum\Util\Keccak\Keccak.cs" />
     <Compile Include="BitcoinCashAddr.cs" />
     <Compile Include="Ethereum.cs" />
+    <Compile Include="TraderAPI.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="logo.png">
