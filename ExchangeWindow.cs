@@ -2059,6 +2059,7 @@ namespace NebliDex_Linux
 		private async void Change_Market(object sender, EventArgs args)
         {
             if (App.main_window_loaded == false) { return; }
+			if (App.trader_api_changing_markets == true) { App.NebliDexNetLog("Running trading api twice"); return; }
             if (Convert.ToString(Market_Percent.Text) == "LOADING...") { return; }  //Can't change market when waiting
 
 			//First find which one was selected
