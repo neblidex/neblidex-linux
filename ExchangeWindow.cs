@@ -1912,20 +1912,20 @@ namespace NebliDex_Linux
                     App.reconnect_cn = true;
                     App.cn_network_down = true; //This will force a resync
                 }
+            }
 
-				if (App.run_headless == true)
+			if (App.run_headless == true)
+            {
+                //This is a heartbeat indicator
+                if (App.trader_api_activated == false)
                 {
-					//This is a heartbeat indicator
-					if (App.trader_api_activated == false)
-                    {
-                        int cn_online = App.CN_Nodes_By_IP.Count;
-                        string percent = String.Format(CultureInfo.InvariantCulture, "{0:0.###}", Math.Round(App.my_cn_weight * 100, 3));
-                        Console.WriteLine("Critical Node Status (" + App.UTCTime() + " UTC TIME): CNs Online: " + cn_online + ", " + percent + "% Chance of Validating");
-                    }
-                    else
-                    {
-                        Console.WriteLine("Trader API server running (" + App.UTCTime() + " UTC TIME) with " + App.MyOpenOrderList.Count + " open order(s) present");
-                    }
+                    int cn_online = App.CN_Nodes_By_IP.Count;
+                    string percent = String.Format(CultureInfo.InvariantCulture, "{0:0.###}", Math.Round(App.my_cn_weight * 100, 3));
+                    Console.WriteLine("Critical Node Status (" + App.UTCTime() + " UTC TIME): CNs Online: " + cn_online + ", " + percent + "% Chance of Validating");
+                }
+                else
+                {
+                    Console.WriteLine("Trader API server running (" + App.UTCTime() + " UTC TIME) with " + App.MyOpenOrderList.Count + " open order(s) present");
                 }
             }
 

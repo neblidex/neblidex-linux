@@ -160,23 +160,30 @@ namespace NebliDex_Linux
                 //It uses HTTPS protocol
                 NEBLAPI_server = "https://ntp1node.nebl.io"; //Critical Nodes server as backup to API server going down
 
-                //Bitcoin Electrum DNS Seeds
-                //Switching over to secure SSL
+				//Bitcoin Electrum DNS Seeds
+                //Electrum DNS lists sourced from 1209k.com Bitcoin Eye and use SSL servers
                 DNSSeedList.Add(new DNSSeed("fortress.qtornado.com", 50002, true, 1)); //Adding a Bitcoin Seed at port 50002
-                DNSSeedList.Add(new DNSSeed("aspinall.io", 50002, true, 1));
                 DNSSeedList.Add(new DNSSeed("electrumx-core.1209k.com", 50002, true, 1));
-                DNSSeedList.Add(new DNSSeed("electrum.hodlister.co", 50002, true, 1));
-                DNSSeedList.Add(new DNSSeed("btc.theblains.org", 50006, true, 1));
                 DNSSeedList.Add(new DNSSeed("kirsche.emzy.de", 50002, true, 1));
-                DNSSeedList.Add(new DNSSeed("e1.keff.org", 50002, true, 1));
-                DNSSeedList.Add(new DNSSeed("btc.smsys.me", 995, true, 1));
                 DNSSeedList.Add(new DNSSeed("electrum.coineuskal.com", 50002, true, 1));
-                DNSSeedList.Add(new DNSSeed("technetium.network", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrum.petrkr.net", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("bitcoin.aranguren.org", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("btc.outoftime.co", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrumx.alexridevski.net", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrum2.baremetalpittsburgh.net", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("vps4.hsmiths.com", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("caleb.vegas", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrum.hashbadger.com", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("thanos.xskyx.net", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("btc.electroncash.dk", 60002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrumx.reichster.de", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("b.1209k.com", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("xtrum.com", 50002, true, 1));
+                DNSSeedList.Add(new DNSSeed("electrum2.privateservers.network", 50002, true, 1));
 
                 //Litecoin Electrum DNS Seeds
                 DNSSeedList.Add(new DNSSeed("backup.electrum-ltc.org", 443, true, 2));
                 DNSSeedList.Add(new DNSSeed("electrum-ltc.bysh.me", 50002, true, 2));
-                DNSSeedList.Add(new DNSSeed("node.ispol.sk", 50004, true, 2));
                 DNSSeedList.Add(new DNSSeed("ltc.rentonisk.com", 50002, true, 2));
                 DNSSeedList.Add(new DNSSeed("electrum.ltc.xurious.com", 50002, true, 2));
 
@@ -189,20 +196,32 @@ namespace NebliDex_Linux
                 DNSSeedList.Add(new DNSSeed("18.194.84.135", 50002, true, 3));
 
                 //Bitcoin Cash
-                DNSSeedList.Add(new DNSSeed("bitcoin.dragon.zone", 50002, true, 4));
                 DNSSeedList.Add(new DNSSeed("electrum.imaginary.cash", 50002, true, 4));
-                DNSSeedList.Add(new DNSSeed("cash.theblains.org", 50002, true, 4));
-                DNSSeedList.Add(new DNSSeed("electron.coinucopia.io", 50002, true, 4));
                 DNSSeedList.Add(new DNSSeed("electrumx-cash.1209k.com", 50002, true, 4));
                 DNSSeedList.Add(new DNSSeed("blackie.c3-soft.com", 50002, true, 4));
                 DNSSeedList.Add(new DNSSeed("bch.soul-dev.com", 50002, true, 4));
                 DNSSeedList.Add(new DNSSeed("bch.loping.net", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("bch2.electroncash.dk", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("electroncash.de", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("bch.disdev.org", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("fulcrum.fountainhead.cash", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("bch0.kister.net", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("bitcoincash.network", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("dedi.jochen-hoenicke.de", 51002, true, 4));
+                DNSSeedList.Add(new DNSSeed("electrs.bitcoinunlimited.info", 50002, true, 4));
+                DNSSeedList.Add(new DNSSeed("bch.rossbennetts.com", 50012, true, 4));
+                DNSSeedList.Add(new DNSSeed("electron-server.ninja", 50012, true, 4));
+                DNSSeedList.Add(new DNSSeed("crypto.mldlabs.com", 50002, true, 4));
 
                 //Monacoin
                 DNSSeedList.Add(new DNSSeed("electrumx1.monacoin.ninja", 50002, true, 5));
-                DNSSeedList.Add(new DNSSeed("electrumx2.tamami-foundation.org", 50002, true, 5));
-                DNSSeedList.Add(new DNSSeed("electrumx2.monacoin.nl", 50002, true, 5));
-                DNSSeedList.Add(new DNSSeed("electrumx2.monacoin.ninja", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrumx.tamami-foundation.org", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrumx3.monacoin.nl", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrum.miningbeaver.ga", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("electrum-mona.bitbank.cc", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("133.167.67.203", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("103.125.218.246", 50002, true, 5));
+                DNSSeedList.Add(new DNSSeed("102.67.136.247", 50002, true, 5)); 
 
                 //Add the Ethereum API Nodes
                 EthereumApiNodeList.Add(new EthereumApiNode("https://api.etherscan.io/api", 0, false));
